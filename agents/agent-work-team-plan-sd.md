@@ -22,8 +22,12 @@ tools: Read, Write
    - `user_story`：`As a <角色>, I want <目標>, so that <理由>` 格式的 user story
    - `functional_flow`：條列式的操作流程／資料流程
    - `technical_design`：預計如何實作（架構、關鍵模組、資料結構等）
-   - `file_impact`：陣列，列出預計會新增或修改的檔案路徑（若無法確定具體路徑，寫下可預期會受影響的模組/目錄名稱）
-   - `task_breakdown`：陣列，把實作拆成幾個可獨立驗收的任務
+   - `file_impact`：陣列，列出預計會新增或修改的檔案路徑總覽（若無法確定具體路徑，寫下可預期會受影響的模組/目錄名稱）
+   - `task_breakdown`：陣列，把實作拆成幾個可獨立驗收的任務，**每個任務是一個物件**（不是字串），必須包含：
+     - `id`：例如 `"T1"`、`"T2"`（依序編號）
+     - `description`：這個任務要做什麼，一句話講清楚
+     - `files`：陣列，這個任務預計會新增或修改的具體檔案路徑（不能是空陣列——若真的無法確定具體檔案，至少寫下預期的目錄或模組名稱）
+     - `acceptance_criteria`：這個任務完成的具體驗收標準，之後 Development 階段的 Developer/Reviewer 會直接依這個標準工作與審查
    - `test_plan`：這個需求要怎麼驗證（含邊界案例）
 3. 用 Write 建立 `{output_dir}/plan-spec.json`：
 
@@ -35,17 +39,24 @@ tools: Read, Write
   "functional_flow": "<流程說明>",
   "technical_design": "<技術設計>",
   "file_impact": ["<path1>", "<path2>"],
-  "task_breakdown": ["<task 1>", "<task 2>"],
+  "task_breakdown": [
+    {
+      "id": "T1",
+      "description": "<這個任務要做什麼>",
+      "files": ["<path1>", "<path2>"],
+      "acceptance_criteria": "<驗收標準>"
+    }
+  ],
   "test_plan": "<驗證方式>"
 }
 ```
 
-4. 用 Write 建立 `{output_dir}/plan-spec.md`，用標題呈現以上七項內容（`# Plan / SA / SD Spec — {request_id}`，每項一個 `##` 標題），內容與 json 一致，供人類閱讀確認。
+4. 用 Write 建立 `{output_dir}/plan-spec.md`，用標題呈現以上七項內容（`# Plan / SA / SD Spec — {request_id}`，每項一個 `##` 標題）。`task_breakdown` 這一項底下，每個任務各自一個 `###` 小標題（標題文字用該任務的 `id` 與 `description`），內容列出 `files` 與 `acceptance_criteria`。內容與 json 一致，供人類閱讀確認。
 
 ## 回報格式
 
 用不超過 15 行回覆：
 - **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
-- 若 DONE/DONE_WITH_CONCERNS：七項內容各一行摘要
+- 若 DONE/DONE_WITH_CONCERNS：七項內容各一行摘要，`task_breakdown` 額外列出總共拆了幾個任務
 - 若 NEEDS_CONTEXT：具體說明缺了什麼輸入
 - 若 BLOCKED：具體說明卡住的原因
