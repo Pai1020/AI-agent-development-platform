@@ -60,7 +60,7 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 | PENDING_FINAL_APPROVAL | 95 |
 | DEV_APPROVED | 100 |
 
-`commands/agent-work-team.md` 裡原本 `SPEC_APPROVED: progress 100` 的地方需要改成 `50`——這是對 Round 1 已上線程式碼的調整。
+`commands/agent-work-team.md` 裡所有既有的 progress 數字都要對照新表重新編號，不是只有 `SPEC_APPROVED`：`BA_CLARIFYING` 30→20、`SPEC_DRAFTING` 60→30、`PENDING_SPEC_APPROVAL` 90→40、`SPEC_APPROVED` 100→50（`PM_TRIAGE` 的 10 不變）。這是對 Round 1 已上線程式碼的調整。
 
 ## 目錄與檔案結構（延伸 `RQ-00X/`）
 
