@@ -36,7 +36,8 @@
   "description": "SDLC 開發流程自動化工具集 for Claude Code — 目前聚焦需求與規劃階段",
   "version": "0.1.0",
   "author": {
-    "name": "Pai1020"
+    "name": "Pai1020",
+    "url": "https://github.com/Pai1020"
   },
   "homepage": "https://github.com/Pai1020/AI-agent-development-platform",
   "repository": "https://github.com/Pai1020/AI-agent-development-platform",
@@ -56,7 +57,8 @@
   "name": "ai-agent-dev-platform-marketplace",
   "description": "Local marketplace for the ai-agent-dev-platform Claude Code plugin",
   "owner": {
-    "name": "Pai1020"
+    "name": "Pai1020",
+    "url": "https://github.com/Pai1020"
   },
   "plugins": [
     {
@@ -65,7 +67,8 @@
       "version": "0.1.0",
       "source": "./",
       "author": {
-        "name": "Pai1020"
+        "name": "Pai1020",
+        "url": "https://github.com/Pai1020"
       }
     }
   ]
