@@ -45,7 +45,7 @@ test('renderDashboardTable sorts by updated descending', () => {
 
 test('collectRequests returns [] when the requests dir does not exist', () => {
   const dir = mkdtempSync(join(tmpdir(), 'awt-test-'));
-  assert.deepEqual(collectRequests(dir), []);
+  assert.deepEqual(collectRequests(dir), { requests: [], skipped: [] });
 });
 
 test('collectRequests reads every state.json under requests/', () => {
@@ -55,9 +55,10 @@ test('collectRequests reads every state.json under requests/', () => {
     join(dir, '.agent-work-team/requests/RQ-001/state.json'),
     JSON.stringify({ id: 'RQ-001', updated: '2026-07-04' }),
   );
-  const requests = collectRequests(dir);
+  const { requests, skipped } = collectRequests(dir);
   assert.equal(requests.length, 1);
   assert.equal(requests[0].id, 'RQ-001');
+  assert.deepEqual(skipped, []);
 });
 
 test('collectRequests skips a request whose state.json is invalid JSON, keeping the rest', () => {
@@ -69,9 +70,10 @@ test('collectRequests skips a request whose state.json is invalid JSON, keeping 
     join(dir, '.agent-work-team/requests/RQ-002/state.json'),
     JSON.stringify({ id: 'RQ-002', updated: '2026-07-04' }),
   );
-  const requests = collectRequests(dir);
+  const { requests, skipped } = collectRequests(dir);
   assert.equal(requests.length, 1);
   assert.equal(requests[0].id, 'RQ-002');
+  assert.deepEqual(skipped, ['RQ-001']);
 });
 
 test('rebuildDashboard writes dashboard.md and returns the table', () => {
@@ -91,6 +93,26 @@ test('rebuildDashboard writes dashboard.md and returns the table', () => {
   const content = readFileSync(join(dir, '.agent-work-team/dashboard.md'), 'utf8');
   assert.match(content, /# Agent Work Team Dashboard/);
   assert.match(content, /RQ-001/);
+});
+
+test('rebuildDashboard includes a visible warning when a request is skipped', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'awt-test-'));
+  mkdirSync(join(dir, '.agent-work-team/requests/RQ-001'), { recursive: true });
+  writeFileSync(join(dir, '.agent-work-team/requests/RQ-001/state.json'), '{not valid json');
+  mkdirSync(join(dir, '.agent-work-team/requests/RQ-002'), { recursive: true });
+  writeFileSync(
+    join(dir, '.agent-work-team/requests/RQ-002/state.json'),
+    JSON.stringify({
+      id: 'RQ-002', name: 'Test', type: 'New Feature', source: 'User', team: 'New Feature Team',
+      priority: 'High', progress: 10, current_stage: 'PM_TRIAGE', current_agent: 'PM Agent',
+      status: 'Running', waiting_on: null, created: '2026-07-04', updated: '2026-07-04',
+    }),
+  );
+  const result = rebuildDashboard(dir);
+  assert.equal(result.created, true);
+  const content = readFileSync(join(dir, '.agent-work-team/dashboard.md'), 'utf8');
+  assert.match(content, /RQ-001/);
+  assert.match(content, /跳過/);
 });
 
 test('rebuildDashboard does not create dashboard.md when there are zero requests', () => {

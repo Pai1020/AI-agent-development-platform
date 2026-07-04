@@ -45,9 +45,10 @@ export function renderDashboardTable(requests) {
 
 export function collectRequests(cwd = process.cwd()) {
   const dir = join(cwd, REQUESTS_DIR);
-  if (!existsSync(dir)) return [];
+  if (!existsSync(dir)) return { requests: [], skipped: [] };
   const entries = readdirSync(dir, { withFileTypes: true });
   const requests = [];
+  const skipped = [];
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const stateFile = join(dir, entry.name, 'state.json');
@@ -56,19 +57,29 @@ export function collectRequests(cwd = process.cwd()) {
       requests.push(JSON.parse(readFileSync(stateFile, 'utf8')));
     } catch (err) {
       console.error(`sync-dashboard: skipping ${stateFile}: ${err.message}`);
-      continue;
+      skipped.push(entry.name);
     }
   }
-  return requests;
+  return { requests, skipped };
 }
 
 export function rebuildDashboard(cwd = process.cwd()) {
-  const requests = collectRequests(cwd);
-  if (requests.length === 0) {
+  const { requests, skipped } = collectRequests(cwd);
+  if (requests.length === 0 && skipped.length === 0) {
     return { created: false, message: '目前沒有任何 agent-work-team 需求', table: null };
   }
+  if (requests.length === 0) {
+    return {
+      created: false,
+      message: `所有需求的 state.json 都無法解析，已跳過：${skipped.join(', ')}`,
+      table: null,
+    };
+  }
   const table = renderDashboardTable(requests);
-  const content = `# Agent Work Team Dashboard\n\n${table}\n`;
+  const warning = skipped.length > 0
+    ? `\n> ⚠️ ${skipped.length} 個需求因 state.json 無法解析而被跳過：${skipped.join(', ')}\n`
+    : '';
+  const content = `# Agent Work Team Dashboard\n${warning}\n${table}\n`;
   writeFileSync(join(cwd, DASHBOARD_PATH), content, 'utf8');
   return { created: true, message: null, table };
 }
