@@ -1,0 +1,17 @@
+{
+  "name": "ai-agent-dev-platform",
+  "description": "SDLC 開發流程自動化工具集 for Claude Code — 目前聚焦需求與規劃階段",
+  "version": "0.1.0",
+  "author": {
+    "name": "Pai1020",
+    "url": "https://github.com/Pai1020"
+  },
+  "homepage": "https://github.com/Pai1020/AI-agent-development-platform",
+  "repository": "https://github.com/Pai1020/AI-agent-development-platform",
+  "license": "MIT",
+  "keywords": [
+    "sdlc",
+    "planning",
+    "workflow-automation"
+  ]
+}
