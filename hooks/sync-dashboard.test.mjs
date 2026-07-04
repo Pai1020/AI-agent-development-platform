@@ -60,6 +60,20 @@ test('collectRequests reads every state.json under requests/', () => {
   assert.equal(requests[0].id, 'RQ-001');
 });
 
+test('collectRequests skips a request whose state.json is invalid JSON, keeping the rest', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'awt-test-'));
+  mkdirSync(join(dir, '.agent-work-team/requests/RQ-001'), { recursive: true });
+  writeFileSync(join(dir, '.agent-work-team/requests/RQ-001/state.json'), '{not valid json');
+  mkdirSync(join(dir, '.agent-work-team/requests/RQ-002'), { recursive: true });
+  writeFileSync(
+    join(dir, '.agent-work-team/requests/RQ-002/state.json'),
+    JSON.stringify({ id: 'RQ-002', updated: '2026-07-04' }),
+  );
+  const requests = collectRequests(dir);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].id, 'RQ-002');
+});
+
 test('rebuildDashboard writes dashboard.md and returns the table', () => {
   const dir = mkdtempSync(join(tmpdir(), 'awt-test-'));
   mkdirSync(join(dir, '.agent-work-team/requests/RQ-001'), { recursive: true });

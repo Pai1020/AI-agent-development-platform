@@ -55,7 +55,8 @@ export function collectRequests(cwd = process.cwd()) {
     try {
       requests.push(JSON.parse(readFileSync(stateFile, 'utf8')));
     } catch (err) {
-      throw new Error(`Failed to parse ${stateFile}: ${err.message}`);
+      console.error(`sync-dashboard: skipping ${stateFile}: ${err.message}`);
+      continue;
     }
   }
   return requests;
@@ -82,9 +83,14 @@ async function main() {
   const forceMode = process.argv.includes('--force');
 
   if (forceMode) {
-    const result = rebuildDashboard();
-    console.log(result.created ? result.table : result.message);
-    process.exit(0);
+    try {
+      const result = rebuildDashboard();
+      console.log(result.created ? result.table : result.message);
+      process.exit(0);
+    } catch (err) {
+      process.stderr.write(`sync-dashboard: failed to rebuild dashboard: ${err.message}\n`);
+      process.exit(1);
+    }
   }
 
   let input;
