@@ -318,8 +318,8 @@ Expected: no output from either (both patterns absent).
 
 In a scratch project where this plugin is installed, run:
 
-1. `/agent-work-team "測試用需求描述"` — confirm that **without running any other command**, `.agent-work-team/dashboard.md` already exists and lists this request as soon as PM triage completes (i.e., after `state.json` first reaches `BA_CLARIFYING`).
-2. Continue through BA clarification, spec generation, and approval as before — confirm `dashboard.md` updates itself after each stage transition, still without any manual command.
+1. `/agent-work-team "測試用需求描述"` — confirm that **without running any other command**, `.agent-work-team/dashboard.md` already exists and lists this request **immediately after `RQ-001` is created, while `current_stage` is still `CREATED`** (i.e., before PM triage even dispatches — this is Step 1's sync point, the earliest one, and checking only after `BA_CLARIFYING` wouldn't catch a dropped Step 1 sync since Step 2's sync would still have created the file).
+2. Continue through PM triage, BA clarification, spec generation, and approval as before — confirm `dashboard.md` updates itself after each stage transition, still without any manual command.
 3. Delete `.agent-work-team/dashboard.md`, then run `/agent-work-team-dashboard` — confirm it recreates the file with the same content it would have had, and also shows the table inline in the reply.
 4. Start a second request with a deliberately unclassifiable description — confirm `dashboard.md` reflects the `Blocked` status/`"Human"` waiting_on without any manual command, matching the BLOCKED-state semantics from the design doc.
 
