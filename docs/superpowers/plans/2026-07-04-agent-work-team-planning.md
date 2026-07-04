@@ -14,8 +14,9 @@
 - Entry command: `/agent-work-team`. Dashboard command: `/agent-work-team-dashboard`.
 - Request IDs are `RQ-NNN`, 3-digit zero-padded, computed as (max existing NNN) + 1, starting at `RQ-001`.
 - `state.json` fields (exact names): `id`, `name`, `type`, `source`, `team`, `priority`, `progress`, `current_stage`, `current_agent`, `status`, `waiting_on`, `created`, `updated`.
-- State machine: `CREATED` → `PM_TRIAGE` → `BA_CLARIFYING` → `SPEC_DRAFTING` → `PENDING_SPEC_APPROVAL` → `SPEC_APPROVED`, with `BLOCKED` reachable from any stage.
-- Progress-by-stage table: `CREATED`=0, `PM_TRIAGE`=10, `BA_CLARIFYING`=30, `SPEC_DRAFTING`=60, `PENDING_SPEC_APPROVAL`=90, `SPEC_APPROVED`=100. `BLOCKED` keeps whatever value it had before blocking.
+- State machine: `CREATED` → `PM_TRIAGE` → `BA_CLARIFYING` → `SPEC_DRAFTING` → `PENDING_SPEC_APPROVAL` → `SPEC_APPROVED`. `BLOCKED` is not a `current_stage` value — it's expressed via `status: "Blocked"` + `waiting_on: "Human"` while `current_stage`/`progress` stay frozen at whatever stage they were in when the block occurred.
+- Progress-by-stage table: `CREATED`=0, `PM_TRIAGE`=10, `BA_CLARIFYING`=30, `SPEC_DRAFTING`=60, `PENDING_SPEC_APPROVAL`=90, `SPEC_APPROVED`=100.
+- `waiting_on` values actually used: `null` (not waiting on anyone), `"Human Review"` (waiting for spec approval), `"Human"` (blocked, needs a human to unblock). `status` values actually used: `Running`, `Pending Approval`, `Blocked`, `Approved`.
 - BA clarification and every human-approval gate run in the main thread (the entry command itself), never as a dispatched subagent.
 - PM and Plan/SA/SD are each an independent subagent, handed off to via files (json + md) plus a short status reply (`DONE` / `DONE_WITH_CONCERNS` / `BLOCKED` / `NEEDS_CONTEXT`).
 - Out of scope (do not build): Developer/Review/Knowledge Agent, Validation Layer, multiple Methodologies, Child Dashboard, automated multi-team parallel dispatch, any persistent backend/database/web server.

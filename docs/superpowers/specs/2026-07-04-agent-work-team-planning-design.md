@@ -44,10 +44,11 @@ MVP 文件裡的 Workflow Engine（派工）、State Machine（持久化）、Mo
 
 ```
 CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPROVAL → SPEC_APPROVED
-                                                                             ↘ BLOCKED（任何階段皆可能進入）
 ```
 
-**Progress 對照表**（由 controller 依 `current_stage` 計算，agent 不自行回報）：
+**BLOCKED 不是 `current_stage` 的一個值。** 卡住時 `current_stage` 保持在卡住當下的階段不變（例如卡在 PM 分類就停在 `PM_TRIAGE`），只有 `status` 變成 `"Blocked"`、`waiting_on` 變成 `"Human"`。這樣 dashboard 才能同時顯示「卡在哪一步」與「正在卡住」兩個資訊，而不是用 `current_stage: "BLOCKED"` 蓋掉原本卡住的階段。
+
+**Progress 對照表**（由 controller 依 `current_stage` 計算，agent 不自行回報；卡住時 `progress` 沿用卡住當下 `current_stage` 對應的數值，不特別歸零或改變）：
 
 | current_stage | progress |
 |---|---|
@@ -57,7 +58,6 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 | SPEC_DRAFTING | 60 |
 | PENDING_SPEC_APPROVAL | 90 |
 | SPEC_APPROVED | 100 |
-| BLOCKED | 維持進入 BLOCKED 前的數值 |
 
 ## `state.json` 欄位
 
@@ -83,8 +83,8 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 - `source`: `User` | `Product` | `Bug Report` | `Tech Debt` | `AI Suggestion` | `Monitoring`
 - `team`: `New Feature Team` | `Maintenance Team`
 - `priority`: `Critical` | `High` | `Medium` | `Low`
-- `status`: `Running` | `Waiting` | `Pending Approval` | `Blocked` | `Approved`
-- `waiting_on`: `null` | `"User"` | `"Human Review"`
+- `status`: `Running` | `Pending Approval` | `Blocked` | `Approved`
+- `waiting_on`: `null` | `"Human Review"`（等待 spec 核准）| `"Human"`（PM 或 Plan/SA/SD 卡住，需要人判斷）
 
 ## `/agent-work-team "<需求描述>"` 執行流程
 
