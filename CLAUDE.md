@@ -4,7 +4,8 @@
 
 ## 目前狀態
 
-- Planning 階段第一版已實作：`/agent-work-team` 驅動 PM → BA → Plan/SA/SD 流程，`/agent-work-team-dashboard` 顯示需求總覽
+- Planning 階段第一版已實作：`/agent-work-team` 驅動 PM → BA → Plan/SA/SD 流程
+- 需求總覽是自動維護的 `.agent-work-team/dashboard.md` 檔案，每次狀態變更由 `/agent-work-team` 自動同步；`/agent-work-team-dashboard` 只是備用的手動重建指令
 - 狀態與各階段產出以檔案形式存在**使用者專案**的 `.agent-work-team/requests/` 底下，這個 plugin repo 本身不存放任何需求資料
 - 完整設計見 `docs/superpowers/specs/2026-07-04-agent-work-team-planning-design.md`
 - Developer/Review/Knowledge Agent 尚未實作，屬於後續版本
