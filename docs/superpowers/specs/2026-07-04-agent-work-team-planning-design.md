@@ -40,7 +40,15 @@ MVP 文件裡的 Workflow Engine（派工）、State Machine（持久化）、Mo
         └── plan-spec.md
 ```
 
-**`dashboard.md` 是自動維護的檔案，不需要另外呼叫任何 command 才看得到。** `/agent-work-team` 每次用 Write 更新任一需求的 `state.json` 之後，都會緊接著重新掃描所有需求、重新渲染表格、覆寫這個檔案（詳見下方「Dashboard 同步」）。
+**`dashboard.md` 是自動維護的檔案，不需要另外呼叫任何 command 才看得到。** 每次任一需求的 `state.json` 被寫入時，plugin 的 hook 會在背景重新掃描所有需求、重新渲染表格、覆寫這個檔案（詳見下方「Dashboard 同步」）——不是 `/agent-work-team` 自己做，也不會顯示在對話裡。
+
+負責這件事的檔案在 **plugin repo**（不是使用者專案）裡：
+
+```
+hooks/
+├── hooks.json          # PostToolUse hook 定義
+└── sync-dashboard.mjs  # 實際渲染/重建邏輯（hook 模式 + --force 強制模式）
+```
 
 **ID 產生方式：** 掃描 `.agent-work-team/requests/` 底下現有的 `RQ-NNN` 資料夾，取最大號 +1（找不到任何資料夾則從 `RQ-001` 開始）。
 
@@ -90,16 +98,18 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 - `status`: `Running` | `Pending Approval` | `Blocked` | `Approved`
 - `waiting_on`: `null` | `"Human Review"`（等待 spec 核准）| `"Human"`（PM 或 Plan/SA/SD 卡住，需要人判斷）
 
-## Dashboard 同步
+## Dashboard 同步（由 hook 負責，不是 command 自己做）
 
-`/agent-work-team` 每次用 Write 更新任一需求的 `state.json` 之後（不管是哪一步、哪個欄位），緊接著都要做同一件事：
+一開始的設計是讓 `/agent-work-team` 自己在每次寫 `state.json` 之後，用 Glob/Read/Write 重新渲染 `dashboard.md`。測試後發現這樣行不通：模型自己執行的每一個工具呼叫都會顯示在對話裡，沒辦法真正「安靜地在背景」發生，也完全依賴模型記得要做這件事。改用 Claude Code 的 **hook** 機制：
 
-1. 用 Glob 找出 `.agent-work-team/requests/*/state.json` 全部檔案
-2. 用 Read 讀出每一個
-3. 依 `updated` 新到舊排序，渲染成表格（欄位順序：ID／需求名稱／類型／來源／Team／優先級／Progress／Current Stage／Current Agent／Status／Waiting／Created／Updated；`null` 值一律顯示 `-`，`name` 為 `null` 時顯示 `(未命名)`）
-4. 用 Write 覆寫 `.agent-work-team/dashboard.md`：`# Agent Work Team Dashboard` 標題 + 這個表格
+- **`hooks/hooks.json`**：定義一個 `PostToolUse` hook，`matcher: "Write"`，`async: false`，執行 `node "${CLAUDE_PLUGIN_ROOT}/hooks/sync-dashboard.mjs"`。
+- **`hooks/sync-dashboard.mjs`**（Node script，兩種模式共用同一份渲染邏輯）：
+  - **Hook 模式**（預設，由 hook 觸發時使用）：從 stdin 讀 hook 傳入的 JSON，取出 `tool_input.file_path`。如果這個路徑不符合 `.agent-work-team/requests/*/state.json` 這個樣式（也就是這次 Write 跟 agent-work-team 無關），直接 exit 0、不做任何事、不輸出任何東西——確保這個 hook 不會干擾使用者在同一個專案裡的其他 Write 操作。符合的話才真的執行「Glob 所有 `.agent-work-team/requests/*/state.json` → Read 每一個 → 依 `updated` 新到舊排序渲染表格（規則同下）→ Write 覆寫 `.agent-work-team/dashboard.md`」，成功後印 `{"suppressOutput": true}` 讓這次執行完全不出現在對話裡；若重建過程中出錯（例如某個 `state.json` 內容壞掉），exit 2、把錯誤寫到 stderr，讓使用者至少能發現 dashboard 可能沒同步到，而不是靜默失敗。
+  - **強制模式**（帶 `--force` 參數時）：不檢查 stdin，直接執行同一套渲染邏輯，並把渲染好的表格直接印到 stdout（若目前一個需求都沒有，則印出「目前沒有任何 agent-work-team 需求」，且不建立 `dashboard.md`）。這個模式是給 `/agent-work-team-dashboard` 備用指令用的，讓它不需要重複實作一次渲染邏輯。
 
-下面流程裡每次寫「更新 state.json」，都隱含「接著同步 dashboard」這個動作。
+表格渲染規則（兩種模式共用）：欄位順序 ID／需求名稱／類型／來源／Team／優先級／Progress／Current Stage／Current Agent／Status／Waiting／Created／Updated；`null` 值一律顯示 `-`，`name` 為 `null` 時顯示 `(未命名)`；`dashboard.md` 內容是 `# Agent Work Team Dashboard` 標題 + 這個表格。
+
+`/agent-work-team` 的 command 本身**不再包含任何 dashboard 同步的指示**——這件事完全交給 hook，command 只要專心做 PM → BA → Plan/SA/SD 的流程。
 
 ## `/agent-work-team "<需求描述>"` 執行流程
 
@@ -135,7 +145,7 @@ Controller（command 本身的 prompt，執行於主對話串）依序驅動：
 
 ## `/agent-work-team-dashboard`（備用指令）
 
-正常情況下不需要執行這個指令——`.agent-work-team/dashboard.md` 已經由 `/agent-work-team` 自動維護，直接開檔案看就好。這個指令只在你懷疑檔案過期、損毀或被手動刪除時，用來手動重跑一次「Dashboard 同步」（見上方），重新掃描並覆寫 `.agent-work-team/dashboard.md`，同時把渲染結果貼在回覆裡讓你立即確認。
+正常情況下不需要執行這個指令——`.agent-work-team/dashboard.md` 已經由 hook 自動維護，直接開檔案看就好。這個指令只在你懷疑檔案過期、損毀或被手動刪除時使用：用 Bash 執行 `node "${CLAUDE_PLUGIN_ROOT}/hooks/sync-dashboard.mjs" --force`（強制模式），把 script 印出來的表格直接貼在回覆裡。指令本身不需要重新實作一次渲染邏輯。
 
 Child Dashboard（單一需求的階段 checklist）本次不實作——`/agent-work-team` 每次執行都會直接告知使用者目前卡在哪一步，且 `state.json` 與各階段 `.md` 檔已包含所需資訊。
 
@@ -143,12 +153,11 @@ Child Dashboard（單一需求的階段 checklist）本次不實作——`/agent
 
 由於這是 prompt 驅動的功能（無自動化測試套件可跑），驗證方式為：在一個測試專案 repo 裡實際執行一次完整流程：
 
-1. 執行 `/agent-work-team "測試用需求描述"`，確認 `RQ-001` 資料夾與 `pm-triage.*` 正確產生，`state.json` 正確前進到 `BA_CLARIFYING`，且**不用另外呼叫任何指令**，`.agent-work-team/dashboard.md` 就已經同步顯示這個需求。
-2. 走完 BA 一問一答，確認 `ba-requirement.*` 產生、`state.json` 前進到 `SPEC_DRAFTING`，`dashboard.md` 同步更新。
-3. 確認 `plan-spec.*` 產生七項內容齊全、`state.json` 前進到 `PENDING_SPEC_APPROVAL` 並提示使用者去看檔案，`dashboard.md` 同步更新。
-4. 回覆 approve，確認 `state.json` 變成 `SPEC_APPROVED`、`progress: 100`，`dashboard.md` 同步更新。
-5. 手動刪除或改壞 `dashboard.md`，執行 `/agent-work-team-dashboard`，確認它能重新掃描並正確重建這個檔案。
-6. 刻意讓 PM 或 Plan/SA/SD 卡住（例如提供無法分類的描述），確認 `BLOCKED` 狀態與提示正確運作，且 `dashboard.md` 也同步反映 Blocked 狀態。
+1. 執行 `/agent-work-team "測試用需求描述"`，確認 `RQ-001` 資料夾與 `state.json` 正確產生（`current_stage: CREATED`），且**不用另外呼叫任何指令、對話裡也看不到任何 hook 執行痕跡**，`.agent-work-team/dashboard.md` 就已經悄悄同步顯示這個需求。
+2. 走完 PM 分類、BA 一問一答、Plan/SA/SD 產出、approve 核准，確認每次 `state.json` 變更後 `dashboard.md` 都同步更新，且過程中都沒有任何 hook 相關的輸出出現在對話裡。
+3. 在同一個測試專案裡，用 Write 建立一個跟 agent-work-team 完全無關的檔案（例如 `foo.txt`），確認這不會觸發 dashboard 重建、也不會有任何 hook 輸出——驗證 hook 的自我過濾邏輯正確。
+4. 手動刪除或改壞 `dashboard.md`，執行 `/agent-work-team-dashboard`，確認它能透過 `--force` 模式重新掃描並正確重建這個檔案，同時把表格顯示在回覆裡。
+5. 刻意讓 PM 或 Plan/SA/SD 卡住（例如提供無法分類的描述），確認 `BLOCKED` 狀態與提示正確運作，且 `dashboard.md` 也同步反映 Blocked 狀態。
 
 ## Out of scope
 
