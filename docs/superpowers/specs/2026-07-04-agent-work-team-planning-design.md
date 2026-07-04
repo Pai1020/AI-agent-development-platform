@@ -12,7 +12,7 @@ MVP 文件裡的 Workflow Engine（派工）、State Machine（持久化）、Mo
 
 - 沒有常駐服務、沒有資料庫。
 - 每個需求的狀態是使用者專案 repo 裡的一個 JSON 檔案（`state.json`），由 command/subagent 直接讀寫。
-- Dashboard 是一個唯讀 command，即時掃描這些狀態檔案渲染出來，而不是查詢即時服務。
+- Dashboard 是一個自動維護的檔案（`dashboard.md`），每次狀態變更時同步重新渲染，而不是查詢即時服務或需要另外呼叫指令才看得到。
 - 每個階段的產出都有 **json（給下一步 agent 讀）+ md（給人類讀）** 兩份。
 
 這個做法跟本次 session 稍早用來建置 plugin 骨架的 `subagent-driven-development` 模式（brief 檔 + report 檔 + progress ledger）是同一套原理，證明這個機制在 Claude Code 裡確實可行。
@@ -21,15 +21,17 @@ MVP 文件裡的 Workflow Engine（派工）、State Machine（持久化）、Mo
 
 - 狀態資料夾：`.agent-work-team/requests/RQ-00X/`（存在**使用者自己的專案 repo**根目錄，不是這個 plugin repo 裡）
 - 入口 command：`/agent-work-team "<需求描述>"`
-- Dashboard command：`/agent-work-team-dashboard`
+- Dashboard 檔案：`.agent-work-team/dashboard.md`（自動維護，不需呼叫指令）
+- Dashboard 備用重建 command：`/agent-work-team-dashboard`
 
 ## 目錄與檔案結構
 
 ```
 .agent-work-team/
+├── dashboard.md             # Mother Dashboard，彙整所有需求，自動維護，直接開來看
 └── requests/
     └── RQ-001/
-        ├── state.json          # Mother Dashboard 的單一真相來源
+        ├── state.json          # 單一需求的單一真相來源
         ├── pm-triage.json      # PM Agent 產出（機器讀）
         ├── pm-triage.md        # PM Agent 產出（人類讀）
         ├── ba-requirement.json # BA Agent 產出
@@ -37,6 +39,8 @@ MVP 文件裡的 Workflow Engine（派工）、State Machine（持久化）、Mo
         ├── plan-spec.json      # Plan/SA/SD Agent 產出
         └── plan-spec.md
 ```
+
+**`dashboard.md` 是自動維護的檔案，不需要另外呼叫任何 command 才看得到。** `/agent-work-team` 每次用 Write 更新任一需求的 `state.json` 之後，都會緊接著重新掃描所有需求、重新渲染表格、覆寫這個檔案（詳見下方「Dashboard 同步」）。
 
 **ID 產生方式：** 掃描 `.agent-work-team/requests/` 底下現有的 `RQ-NNN` 資料夾，取最大號 +1（找不到任何資料夾則從 `RQ-001` 開始）。
 
@@ -86,6 +90,17 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 - `status`: `Running` | `Pending Approval` | `Blocked` | `Approved`
 - `waiting_on`: `null` | `"Human Review"`（等待 spec 核准）| `"Human"`（PM 或 Plan/SA/SD 卡住，需要人判斷）
 
+## Dashboard 同步
+
+`/agent-work-team` 每次用 Write 更新任一需求的 `state.json` 之後（不管是哪一步、哪個欄位），緊接著都要做同一件事：
+
+1. 用 Glob 找出 `.agent-work-team/requests/*/state.json` 全部檔案
+2. 用 Read 讀出每一個
+3. 依 `updated` 新到舊排序，渲染成表格（欄位順序：ID／需求名稱／類型／來源／Team／優先級／Progress／Current Stage／Current Agent／Status／Waiting／Created／Updated；`null` 值一律顯示 `-`，`name` 為 `null` 時顯示 `(未命名)`）
+4. 用 Write 覆寫 `.agent-work-team/dashboard.md`：`# Agent Work Team Dashboard` 標題 + 這個表格
+
+下面流程裡每次寫「更新 state.json」，都隱含「接著同步 dashboard」這個動作。
+
 ## `/agent-work-team "<需求描述>"` 執行流程
 
 Controller（command 本身的 prompt，執行於主對話串）依序驅動：
@@ -118,9 +133,9 @@ Controller（command 本身的 prompt，執行於主對話串）依序驅動：
 - `NEEDS_CONTEXT`：Controller 補充資訊後重新 dispatch，不需要更新 `state.json` 的 stage（仍在同一階段）。
 - `BLOCKED`：Controller 將 `state.json` 的 `status` 設為 `"Blocked"`、`waiting_on: "Human"`，並把 subagent 回報的具體卡住原因呈現給使用者，而非自行猜測繼續執行。
 
-## `/agent-work-team-dashboard`
+## `/agent-work-team-dashboard`（備用指令）
 
-唯讀 command。掃描 `.agent-work-team/requests/*/state.json`，依 MVP 文件的 Mother Dashboard 表格格式渲染：ID／需求名稱／類型／來源／Team／優先級／Progress／Current Stage／Current Agent／Status／Waiting／Created／Updated。不修改任何檔案。
+正常情況下不需要執行這個指令——`.agent-work-team/dashboard.md` 已經由 `/agent-work-team` 自動維護，直接開檔案看就好。這個指令只在你懷疑檔案過期、損毀或被手動刪除時，用來手動重跑一次「Dashboard 同步」（見上方），重新掃描並覆寫 `.agent-work-team/dashboard.md`，同時把渲染結果貼在回覆裡讓你立即確認。
 
 Child Dashboard（單一需求的階段 checklist）本次不實作——`/agent-work-team` 每次執行都會直接告知使用者目前卡在哪一步，且 `state.json` 與各階段 `.md` 檔已包含所需資訊。
 
@@ -128,12 +143,12 @@ Child Dashboard（單一需求的階段 checklist）本次不實作——`/agent
 
 由於這是 prompt 驅動的功能（無自動化測試套件可跑），驗證方式為：在一個測試專案 repo 裡實際執行一次完整流程：
 
-1. 執行 `/agent-work-team "測試用需求描述"`，確認 `RQ-001` 資料夾與 `pm-triage.*` 正確產生，`state.json` 正確前進到 `BA_CLARIFYING`。
-2. 走完 BA 一問一答，確認 `ba-requirement.*` 產生、`state.json` 前進到 `SPEC_DRAFTING`。
-3. 確認 `plan-spec.*` 產生七項內容齊全、`state.json` 前進到 `PENDING_SPEC_APPROVAL` 並提示使用者去看檔案。
-4. 回覆 approve，確認 `state.json` 變成 `SPEC_APPROVED`、`progress: 100`。
-5. 執行 `/agent-work-team-dashboard`，確認上述需求正確出現在總覽表格中。
-6. 刻意讓 PM 或 Plan/SA/SD 卡住（例如提供無法分類的描述），確認 `BLOCKED` 狀態與提示正確運作。
+1. 執行 `/agent-work-team "測試用需求描述"`，確認 `RQ-001` 資料夾與 `pm-triage.*` 正確產生，`state.json` 正確前進到 `BA_CLARIFYING`，且**不用另外呼叫任何指令**，`.agent-work-team/dashboard.md` 就已經同步顯示這個需求。
+2. 走完 BA 一問一答，確認 `ba-requirement.*` 產生、`state.json` 前進到 `SPEC_DRAFTING`，`dashboard.md` 同步更新。
+3. 確認 `plan-spec.*` 產生七項內容齊全、`state.json` 前進到 `PENDING_SPEC_APPROVAL` 並提示使用者去看檔案，`dashboard.md` 同步更新。
+4. 回覆 approve，確認 `state.json` 變成 `SPEC_APPROVED`、`progress: 100`，`dashboard.md` 同步更新。
+5. 手動刪除或改壞 `dashboard.md`，執行 `/agent-work-team-dashboard`，確認它能重新掃描並正確重建這個檔案。
+6. 刻意讓 PM 或 Plan/SA/SD 卡住（例如提供無法分類的描述），確認 `BLOCKED` 狀態與提示正確運作，且 `dashboard.md` 也同步反映 Blocked 狀態。
 
 ## Out of scope
 
