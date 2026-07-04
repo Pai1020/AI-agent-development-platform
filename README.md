@@ -11,10 +11,10 @@ Claude Code plugin：一組 SDLC（軟體開發生命週期）開發流程自動
 
 ## 目前內容
 
-目前僅提供骨架與佔位範例，尚未實作具體 Planning 功能：
+- `commands/agent-work-team.md` — 入口指令，啟動 PM → BA → Plan/SA/SD 規劃流程
+- `commands/agent-work-team-dashboard.md` — 需求總覽（Mother Dashboard），唯讀
+- `agents/agent-work-team-pm.md` — PM Agent（需求分類）
+- `agents/agent-work-team-plan-sd.md` — Plan/SA/SD Agent（技術規格產出）
+- `skills/example-planning` — 佔位 skill（尚待後續功能取代）
 
-- `skills/example-planning` — 佔位 skill
-- `agents/example-planner.md` — 佔位 subagent
-- `commands/example-plan.md` — 佔位 slash command
-
-實作計畫與後續 roadmap 見 `docs/superpowers/plans/`。
+規劃階段的完整流程設計見 `docs/superpowers/specs/2026-07-04-agent-work-team-planning-design.md`，實作計畫見 `docs/superpowers/plans/`。

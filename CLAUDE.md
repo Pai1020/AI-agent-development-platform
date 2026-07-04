@@ -4,8 +4,10 @@
 
 ## 目前狀態
 
-- 僅有基礎骨架（plugin.json、marketplace.json、skills/agents/commands 佔位範例）
-- 第一版具體功能將聚焦於「需求與規劃（Planning）」階段，尚未實作
+- Planning 階段第一版已實作：`/agent-work-team` 驅動 PM → BA → Plan/SA/SD 流程，`/agent-work-team-dashboard` 顯示需求總覽
+- 狀態與各階段產出以檔案形式存在**使用者專案**的 `.agent-work-team/requests/` 底下，這個 plugin repo 本身不存放任何需求資料
+- 完整設計見 `docs/superpowers/specs/2026-07-04-agent-work-team-planning-design.md`
+- Developer/Review/Knowledge Agent 尚未實作，屬於後續版本
 
 ## 目錄慣例
 
