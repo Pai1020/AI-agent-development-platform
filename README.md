@@ -17,6 +17,4 @@ Claude Code plugin：一組 SDLC（軟體開發生命週期）開發流程自動
 - `agents/example-planner.md` — 佔位 subagent
 - `commands/example-plan.md` — 佔位 slash command
 
-## 開發狀態
-
-骨架建置中，具體功能開發中。
+實作計畫與後續 roadmap 見 `docs/superpowers/plans/`。
