@@ -271,12 +271,13 @@ printf "RQ-%03d\n" $((10#$next + 1))
 
 ## Step 2: PM Agent 分類
 
-1. 用 Agent 工具 dispatch subagent（`subagent_type: "agent-work-team-pm"`，`model: haiku`），在 prompt 裡提供：
+1. 用 Write 更新 `state.json`：`current_stage: "PM_TRIAGE"`，`current_agent: "PM Agent"`，`progress: 10`，`updated` 改成今天日期（用 Bash 重新取得）。
+2. 用 Agent 工具 dispatch subagent（`subagent_type: "agent-work-team-pm"`，`model: haiku`），在 prompt 裡提供：
    - `request_id`: `{request_id}`
    - `output_dir`: `.agent-work-team/requests/{request_id}`
    - `raw_description`: `$ARGUMENTS` 的原文
-2. 若回報 `BLOCKED`：用 Write 把 `state.json` 的 `status` 改成 `"Blocked"`、`waiting_on` 改成 `"Human"`，把 PM 回報的具體原因告訴使用者，然後停止，不要繼續往下走。
-3. 若回報 `DONE`：用 Write 更新 `state.json`：`name`/`type`/`source`/`team`/`priority` 帶入 PM 回報的值，`current_stage: "BA_CLARIFYING"`，`current_agent: "BA Agent"`，`progress: 30`，`updated` 改成今天日期。
+3. 若回報 `BLOCKED`：用 Write 把 `state.json` 的 `status` 改成 `"Blocked"`、`waiting_on` 改成 `"Human"`，把 PM 回報的具體原因告訴使用者，然後停止，不要繼續往下走。
+4. 若回報 `DONE`：用 Write 更新 `state.json`：`name`/`type`/`source`/`team`/`priority` 帶入 PM 回報的值，`current_stage: "BA_CLARIFYING"`，`current_agent: "BA Agent"`，`progress: 30`，`updated` 改成今天日期。
 
 ## Step 3: BA 階段（你自己直接跟使用者對話，不要 dispatch subagent）
 
@@ -305,7 +306,7 @@ printf "RQ-%03d\n" $((10#$next + 1))
 
 ## Step 4: Plan/SA/SD Agent 產出技術規格
 
-1. 用 Agent 工具 dispatch subagent（`subagent_type: "agent-work-team-plan-sd"`，`model: sonnet`），在 prompt 裡提供 `request_id` 與 `output_dir`（同 Step 1）。
+1. 用 Agent 工具 dispatch subagent（`subagent_type: "agent-work-team-plan-sd"`，`model: sonnet`），在 prompt 裡提供 `request_id` 與 `output_dir`（同 Step 2）。
 2. 若回報 `NEEDS_CONTEXT`：把它需要的資訊直接補給它，重新 dispatch，不要更動 `state.json` 的 `current_stage`。
 3. 若回報 `BLOCKED`：用 Write 把 `state.json` 的 `status` 改成 `"Blocked"`、`waiting_on` 改成 `"Human"`，把具體原因告訴使用者，然後停止。
 4. 若回報 `DONE` 或 `DONE_WITH_CONCERNS`：用 Write 更新 `state.json`：`current_stage: "PENDING_SPEC_APPROVAL"`，`current_agent: null`，`status: "Pending Approval"`，`waiting_on: "Human Review"`，`progress: 90`，`updated` 改成今天日期。若是 `DONE_WITH_CONCERNS`，把 concerns 一併告訴使用者。
@@ -321,8 +322,8 @@ printf "RQ-%03d\n" $((10#$next + 1))
 
 - [ ] **Step 2: Validate frontmatter and coverage**
 
-Run: `head -1 commands/agent-work-team.md && grep -c '^description:' commands/agent-work-team.md && grep -c 'agent-work-team-pm' commands/agent-work-team.md && grep -c 'agent-work-team-plan-sd' commands/agent-work-team.md && grep -c 'PENDING_SPEC_APPROVAL' commands/agent-work-team.md && grep -c 'BLOCKED' commands/agent-work-team.md`
-Expected: first line `---`, `description:` count `1`, both subagent name mentions `>= 1`, `PENDING_SPEC_APPROVAL` count `>= 1`, `BLOCKED` count `>= 2` (Step 2 and Step 4 each mention it once).
+Run: `head -1 commands/agent-work-team.md && grep -c '^description:' commands/agent-work-team.md && grep -c 'agent-work-team-pm' commands/agent-work-team.md && grep -c 'agent-work-team-plan-sd' commands/agent-work-team.md && grep -c 'PM_TRIAGE' commands/agent-work-team.md && grep -c 'PENDING_SPEC_APPROVAL' commands/agent-work-team.md && grep -c 'BLOCKED' commands/agent-work-team.md`
+Expected: first line `---`, `description:` count `1`, both subagent name mentions `>= 1`, `PM_TRIAGE` count `>= 1` (state must actually pass through this stage before dispatching PM), `PENDING_SPEC_APPROVAL` count `>= 1`, `BLOCKED` count `>= 2` (Step 2 and Step 4 each mention it once).
 
 - [ ] **Step 3: Remove the superseded placeholder command**
 
