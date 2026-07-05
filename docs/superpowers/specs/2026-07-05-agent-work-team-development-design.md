@@ -119,11 +119,30 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 
 **DEV_APPROVED 之後不會自動 merge。** Merge/push 是會影響共享分支狀態的操作，交給使用者自己決定何時、如何處理——command 只會在核准後的訊息裡明確告訴使用者目前變更在哪個分支（`agent-work-team/{request_id}`）、原本的 `base_branch` 是什麼。
 
+## 恢復執行（Resume）
+
+`current_stage` 一旦離開 `SPEC_APPROVED`，就代表 Development 已經開始過。重新執行 `/agent-work-team-develop {request_id}` 時，用這個欄位判斷這次是「全新開始」還是「恢復執行」：
+
+- `current_stage` 是 `SPEC_APPROVED`：**全新開始**——正常走下面的執行流程，從頭初始化。
+- `current_stage` 是 `DEVELOPING`／`TESTING`／`PENDING_FINAL_APPROVAL`：**恢復執行**（不管上次是被 Blocked、還是流程中斷沒有明確 Blocked）。跳過初始化，直接沿用既有的 `dev/progress.json`、既有的 `state.json` 階段/進度，依下面的規則決定從哪裡繼續：
+  - `dev/progress.json` 裡 `status: "done"` 的 task 一律跳過。
+  - 若有 task 的 `status` 是 `"blocked"`：使用者重新執行本身就是「我要重試」的訊號——把這個 task 的 `fix_rounds`、`needs_context_rounds` 都重設為 `0`、`status` 改成 `"in_progress"`，從 dispatch developer 重新開始。
+  - 若有 task 的 `status` 是 `"in_progress"`（代表上次流程中斷、沒有明確 Blocked）：從 dispatch developer 重新開始處理這個 task，計數器維持原值不歸零。
+  - 若所有 task 都 `"done"`，但 `state.json` 停在 `TESTING` 且 `status` 是 `"Blocked"`（代表卡在最終審查）：把 `final_review_fix_rounds` 重設為 `0`，直接重新 dispatch 最終審查。
+  - 若所有 task 都 `"done"`、且 `current_stage` 已經是 `PENDING_FINAL_APPROVAL`：代表最終審查已通過、只是還沒收到人類的 approve/修改意見，直接回到 Human Approval Gate 等待。
+- `current_stage` 是 `DEV_APPROVED`：這個需求的 Development 階段已經完成，沒有需要恢復的，告訴使用者並停止。
+- `current_stage` 是其他 Planning 階段的值（`CREATED`／`PM_TRIAGE`／`BA_CLARIFYING`／`SPEC_DRAFTING`／`PENDING_SPEC_APPROVAL`）：這個需求還沒被核准進入 Development，告訴使用者目前實際的階段，然後停止。
+
+**恢復執行時，`state.json` 的 `current_stage`／`progress` 不會被重設**——維持恢復前的值，只有真的往下一個階段推進時才更新，確保 dashboard 顯示的進度不會無故倒退。分支的建立/沿用邏輯（見上）在全新開始與恢復執行時都要做（確保切到正確分支），但不會重新建立 `dev/progress.json`。
+
 ## `/agent-work-team-develop` 執行流程
 
-1. 找到目標需求（見上）。驗證 `plan-spec.json` 的 `task_breakdown` 是新格式（每項都有 `id`/`description`/`files`/`acceptance_criteria`）；格式不符就停止並告訴使用者（見錯誤處理）。
-2. 用 Bash 取得目前分支名稱，記錄為 `base_branch`；建立並切換到 `agent-work-team/{request_id}`（若已存在則直接切換過去）。更新 `state.json`：`current_stage: "DEVELOPING"`, `progress: 70`。建立 `dev/progress.json`：每個 task 初始 `status: "pending"`，並記錄 `base_branch`。
-3. **依序處理每個 task**（不平行）：
+1. 找到目標需求（見上）。依「恢復執行」規則判斷這次是全新開始還是恢復執行；`DEV_APPROVED` 或還在 Planning 階段的需求要停止並告訴使用者原因。
+2. 驗證 `plan-spec.json` 的 `task_breakdown` 是新格式（每項都有 `id`/`description`/`files`/`acceptance_criteria`）；格式不符就停止並告訴使用者（見錯誤處理）。
+3. 用 Bash 取得目前分支名稱；建立並切換到 `agent-work-team/{request_id}`（若已存在則直接切換過去，不管是全新開始或恢復執行都一樣）。
+   - 全新開始：記錄目前分支為 `base_branch`，更新 `state.json`：`current_stage: "DEVELOPING"`, `progress: 70`，建立 `dev/progress.json`（每個 task 初始 `status: "pending"`，記錄 `base_branch`）。
+   - 恢復執行：不覆寫 `state.json` 的階段/進度，不重建 `dev/progress.json`，依「恢復執行」規則決定從哪裡繼續。
+4. **依序處理每個 task**（不平行，跳過已經 `done` 的）：
    a. 更新 `dev/progress.json` 該 task 為 `in_progress`。
    b. Dispatch `agent-work-team-developer`，帶入這個 task 的物件與 `technical_design`。
    c. 若回報 `BLOCKED`：標記這個 task `status: "blocked"`，`state.json` 的 `status: "Blocked"`、`waiting_on: "Human"`，把原因告訴使用者，**停止整個流程**（後面的 task 不處理）。
@@ -131,9 +150,9 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
       - `Approved` → 標記這個 task `status: "done"`，記錄 commit sha，進下一個 task。
       - `Needs fixes`（有 Critical/Important）→ 把問題丟回 `agent-work-team-developer` 修，`fix_rounds` +1，重新 review。
       - `fix_rounds` 超過 2 次仍是 `Needs fixes` → 標記這個 task `status: "blocked"`，`state.json` 同上設為 Blocked，把還沒解決的問題列給使用者，**停止整個流程**。
-4. **全部 task 都 `done`**：更新 `state.json`：`current_stage: "TESTING"`, `progress: 90`。針對整個需求的完整 diff（所有 task 的 commit range），跑一次最終審查（沿用同一份 reviewer 邏輯，但範圍是整個需求，不是單一 task），寫入 `dev/final-review.json` / `.md`。
-5. 更新 `state.json`：`current_stage: "PENDING_FINAL_APPROVAL"`, `progress: 95`, `status: "Pending Approval"`, `waiting_on: "Human Review"`。提示使用者：「最終審查已產出於 `dev/final-review.md`，請開啟確認，確認沒問題請回覆 approve，有問題請直接說明」。
-6. **Human Approval Gate**：
+5. **全部 task 都 `done`**：更新 `state.json`：`current_stage: "TESTING"`, `progress: 90`。針對整個需求的完整 diff（所有 task 的 commit range），跑一次最終審查（沿用同一份 reviewer 邏輯，但範圍是整個需求，不是單一 task），寫入 `dev/final-review.json` / `.md`。
+6. 更新 `state.json`：`current_stage: "PENDING_FINAL_APPROVAL"`, `progress: 95`, `status: "Pending Approval"`, `waiting_on: "Human Review"`。提示使用者：「最終審查已產出於 `dev/final-review.md`，請開啟確認，確認沒問題請回覆 approve，有問題請直接說明」。
+7. **Human Approval Gate**：
    - 回覆 **approve** → `state.json`：`current_stage: "DEV_APPROVED"`, `status: "Approved"`, `waiting_on: null`, `progress: 100`。告訴使用者 Development 階段完成，變更都在 `agent-work-team/{request_id}` 分支上、原本的 `base_branch` 是 `{base_branch}`，要不要 merge、何時 merge 由使用者自己決定，Knowledge Agent 是後續版本。流程結束。
    - 提出修改意見 → 把意見整理成需要修的問題，重新走整體審查的 fix 流程（同單一 task 的 fix_rounds 邏輯，超過次數一樣停下來交給人）。
 
@@ -184,4 +203,4 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 4. 讓同一個 task 連續 2 次修正都過不了，確認流程正確停在 `Blocked` 並列出具體問題，且後面的 task 沒有被執行。手動把 `dev/progress.json` 某個 task 的 `fix_rounds` 改成 3（模擬 Controller 忘記自己停下來），確認 `hooks/enforce-block.mjs` 這個 hook 自己把 `state.json` 設成 Blocked，且**確認是 Controller 在下一輪真的因為這個訊息改變行為（停止繼續 dispatch），不是只有你自己在 transcript 裡看到一行字**——這是驗證 `additionalContext` 機制真的有效，不是只驗證「有東西印出來」。
 5. 全部 task 過關後，確認 `state.json` 前進到 `TESTING` 再到 `PENDING_FINAL_APPROVAL`，`dev/final-review.*` 正確產生並提示使用者去看檔案。
 6. 回覆 approve，確認 `state.json` 變成 `DEV_APPROVED`、`progress: 100`，且訊息裡正確告知目前變更所在的分支與 `base_branch`，**沒有自動執行任何 merge**。
-7. 對同一個已經有分支的需求（例如上次 Blocked 後重新執行）再跑一次 `/agent-work-team-develop`，確認它切換到既有分支繼續，而不是覆蓋或重建。
+7. 對測試 4 那個被 Blocked 的需求，重新執行 `/agent-work-team-develop {RQ-ID}`——確認 Step 1 不會因為 `current_stage` 不是 `SPEC_APPROVED` 就擋下來，而是正確判斷為「恢復執行」；確認它切換到既有的 `agent-work-team/{request_id}` 分支繼續，而不是覆蓋或重建；確認被 Blocked 的那個 task 的 `fix_rounds`／`needs_context_rounds` 被重設為 0、重新開始處理；確認 `state.json` 原本的 `current_stage`／`progress` 沒有被重設回 `DEVELOPING`／70（除非它本來就是這個階段）。
