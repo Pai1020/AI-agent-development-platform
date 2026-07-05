@@ -27,7 +27,7 @@ tools: Read, Write, Edit, Bash, Glob, Grep
   "task_id": "{task.id}",
   "status": "DONE",
   "files_changed": ["<path1>", "<path2>"],
-  "commit": "<commit sha>",
+  "commits": ["<commit sha>"],
   "test_summary": "<跑了什麼測試、結果如何>",
   "concerns": "<若有疑慮寫在這裡，沒有就寫 null>"
 }
@@ -37,7 +37,7 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 
 ## 修正回合
 
-若 prompt 裡有上一輪 Reviewer 的問題清單：針對清單裡的每一項具體修正，修正後重新跑相關測試，用 Bash 重新 commit（新的 commit，不要 amend），然後更新（附加，不要覆蓋掉舊資訊）`{task.id}-report.json`／`.md`，記錄這次修了什麼、新的 commit sha。
+若 prompt 裡有上一輪 Reviewer 的問題清單：針對清單裡的每一項具體修正，修正後重新跑相關測試，用 Bash 重新 commit（新的 commit，不要 amend），然後更新 `{task.id}-report.json`／`.md`：把新的 commit sha **附加**到 `commits` 陣列裡（不要覆蓋掉之前的 sha），並在 `.md` 裡記錄這次修了什麼。
 
 ## 什麼時候該停下來
 

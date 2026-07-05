@@ -22,7 +22,7 @@ description: 啟動一個已核准需求的 Development 階段（Developer Agent
 ```json
 {
   "tasks": [
-    {"id": "T1", "status": "pending", "commits": [], "fix_rounds": 0}
+    {"id": "T1", "status": "pending", "commits": [], "fix_rounds": 0, "needs_context_rounds": 0}
   ],
   "final_review_fix_rounds": 0
 }
@@ -34,7 +34,9 @@ description: 啟動一個已核准需求的 Development 階段（Developer Agent
 
 1. 用 Write 更新 `dev/progress.json`，把這個 task 的 `status` 改成 `"in_progress"`。
 2. 用 Agent 工具 dispatch subagent（`subagent_type: "agent-work-team-developer"`，`model: sonnet`），在 prompt 裡提供 `request_id`、`output_dir`（`.agent-work-team/requests/{request_id}`）、這個 task 的完整物件、`plan-spec.json` 的 `technical_design`。
-3. 若回報 `NEEDS_CONTEXT`：補充資訊後重新 dispatch，不要更動 `dev/progress.json` 的 `status`。
+3. 若回報 `NEEDS_CONTEXT`：把 `dev/progress.json` 這個 task 的 `needs_context_rounds` +1。
+   - 若 `needs_context_rounds` 超過 2：把這個 task 的 `status` 改成 `"blocked"`，`state.json` 同第 4 點設為 Blocked，把 Developer 一直缺少的資訊具體告訴使用者，**停止整個 Development 流程**。
+   - 否則：補充資訊後重新 dispatch，不要更動 `dev/progress.json` 的 `status`。
 4. 若回報 `BLOCKED`：用 Write 把這個 task 在 `dev/progress.json` 的 `status` 改成 `"blocked"`，把 `state.json` 的 `status` 改成 `"Blocked"`、`waiting_on` 改成 `"Human"`，把具體原因告訴使用者，**停止整個 Development 流程**，後面的 task 不處理。
 5. 若回報 `DONE` 或 `DONE_WITH_CONCERNS`：把回報裡的 commit sha 記到 `dev/progress.json` 這個 task 的 `commits` 陣列，然後用 Agent 工具 dispatch subagent（`subagent_type: "agent-work-team-reviewer"`，`model: sonnet`），在 prompt 裡提供 `request_id`、`output_dir`、`scope: "{task.id}"`、這個 task 的完整物件、這個 task 目前所有 commit 的 commit range（用 `git diff {第一個 commit}^..HEAD` 取得完整差異）、Developer 的報告檔案路徑。
 6. Reviewer 回報 `Approved`：用 Write 把這個 task 在 `dev/progress.json` 的 `status` 改成 `"done"`，繼續下一個 task。
@@ -46,14 +48,14 @@ description: 啟動一個已核准需求的 Development 階段（Developer Agent
 ## Step 5: 全部 task 完成後的整體審查
 
 1. 確認 `dev/progress.json` 裡每個 task 的 `status` 都是 `"done"`。用 Write 更新 `state.json`：`current_stage: "TESTING"`，`progress: 90`，`updated` 改成今天日期。
-2. 用 Agent 工具 dispatch subagent（`subagent_type: "agent-work-team-reviewer"`，`model: sonnet`），在 prompt 裡提供 `request_id`、`output_dir`、`scope: "final"`、整個 `plan-spec.json`、從 Development 開始到現在的完整 commit range（涵蓋所有 task 的 commit）。
+2. 用 Agent 工具 dispatch subagent（`subagent_type: "agent-work-team-reviewer"`，`model: sonnet`），在 prompt 裡提供 `request_id`、`output_dir`、`scope: "final"`、整個 `plan-spec.json`、完整 commit range——用 `git diff {dev/progress.json 裡第一個 task 的第一個 commit}^..HEAD` 取得從 Development 階段開始到現在的完整差異，涵蓋所有 task 的 commit。
 3. Reviewer 回報 `Needs fixes`：把 `dev/progress.json` 的 `final_review_fix_rounds` +1。
    - 若超過 2：把 `state.json` 的 `status` 改成 `"Blocked"`、`waiting_on: "Human"`，把問題列給使用者，停止流程。
-   - 否則：把問題依內容對應到相關的 task，回到 Step 4 對應的 task 重新處理，修完後回到本步驟第 1 點重新走一次整體審查。
+   - 否則：用 Write 把 `state.json` 更新回 `current_stage: "DEVELOPING"`，`progress: 70`（讓 dashboard 正確反映目前又在修改程式碼），把問題依內容對應到相關的 task，回到 Step 4 對應的 task 重新處理，修完後回到本步驟第 1 點重新走一次整體審查。
 4. Reviewer 回報 `Approved`：用 Write 更新 `state.json`：`current_stage: "PENDING_FINAL_APPROVAL"`，`progress: 95`，`status: "Pending Approval"`，`waiting_on: "Human Review"`，`updated` 改成今天日期。
 
 ## Step 6: Human Approval Gate
 
 1. 明確告訴使用者：「最終審查已產出於 `.agent-work-team/requests/{request_id}/dev/final-review.md`，請開啟該檔案確認內容，確認沒問題請回覆 approve，有問題請直接說明」。一定要請使用者去看實際檔案，不要只在對話裡貼摘要。
 2. 使用者回覆 **approve**（或同義詞如「可以」「沒問題」）：用 Write 更新 `state.json`：`current_stage: "DEV_APPROVED"`，`status: "Approved"`，`waiting_on: null`，`progress: 100`，`updated` 改成今天日期。告訴使用者這個需求的 Development 階段已完成，Knowledge Agent 是後續版本才會實作。流程到此結束。
-3. 使用者提出修改意見：把意見整理成清楚的修正需求，回到 Step 4 對應的 task（或視需要重新走一次整體 review），修完後重新走一次 Step 5。
+3. 使用者提出修改意見：用 Write 把 `state.json` 更新回 `current_stage: "DEVELOPING"`，`progress: 70`，把意見整理成清楚的修正需求，回到 Step 4 對應的 task（或視需要重新走一次整體 review），修完後重新走一次 Step 5。
