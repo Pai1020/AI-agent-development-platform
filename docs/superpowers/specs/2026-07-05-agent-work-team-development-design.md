@@ -140,7 +140,21 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 ## 錯誤處理
 
 - `plan-spec.json` 的 `task_breakdown` 格式不符（例如舊格式字串陣列，或缺少必要欄位）：不猜測、不嘗試自動轉換，直接停止並具體告訴使用者哪裡不符合，需要重新走 Plan/SA/SD 產出正確格式的 spec。
-- 任一 task 或最終審查卡住超過重試次數：`status: "Blocked"`、`waiting_on: "Human"`，把具體問題列出來，停止流程，不自行猜測繼續。
+- 任一 task 或最終審查卡住超過重試次數：`status: "Blocked"`、`waiting_on: "Human"`，把具體問題列出來，停止流程，不自行猜測繼續。**這個門檻檢查同時由 command 的 prompt 指示與下方的 hook 共同把關**（見「Blocked 門檻改由 Hook 強制執行」）。
+
+## Blocked 門檻改由 Hook 強制執行
+
+`/agent-work-team-develop` 本身的 prompt 指示已經要求「+1 之後重新 Read 確認實際數值」，但這仍然是**建議** Controller 這樣做，不是保證。實測發現：在一個跑很多輪 subagent dispatch、又可能被使用者中途打斷的長流程裡，Controller（LLM）有機率忘記做這個門檻檢查，即使它自己知道規則——這跟一開始 dashboard 同步從 prompt 改成 hook 是同一類問題：**確定性的規則不該只靠 LLM 記得去執行**。
+
+解法是新增一個 `PostToolUse` hook（`hooks/enforce-block.mjs`），監聽 `Write`：
+
+- 只處理路徑符合 `.agent-work-team/requests/<id>/dev/progress.json` 的寫入，其他一律 exit 0、不做任何事、不輸出。
+- 讀取整份 `progress.json`，檢查每個 task 的 `fix_rounds`／`needs_context_rounds`，以及頂層的 `final_review_fix_rounds`，是否有任何一個超過 2。
+- 若有超過：讀取同一個需求的 `state.json`。若 `status` 還不是 `"Blocked"`，直接（不透過模型）把它改成 `status: "Blocked"`、`waiting_on: "Human"`，並呼叫 `sync-dashboard.mjs` 已經匯出的 `rebuildDashboard`（直接 import 使用，不要重複實作一份渲染邏輯）讓 `dashboard.md` 同步反映最新狀態。
+- **這個 hook 的輸出不能用 `suppressOutput`**——跟 dashboard 同步 hook 不同，這裡要讓 Controller 看得到，才能真的讓它停下來，而不是在背景默默改了 `state.json`、Controller 卻渾然不知繼續往下做。偵測到超過門檻時，印出明確的訊息告訴 Controller：這個 task／整體審查已經超過重試上限、`state.json` 已經被設為 Blocked，不要再重新 dispatch，應該停止流程並回報使用者。
+- 若沒有超過門檻（或已經是 Blocked，這次寫入沒有新增卡住的項目）：安靜結束，不輸出，避免每次 task 進度更新都被打擾。
+
+這樣一來，即使 Controller 自己的門檻檢查失手，`state.json` 的實際狀態也一定會被 hook correctly 設成 Blocked，不會出現「數字已經超過、但沒有真的停下來」的情況。
 
 ## Out of scope
 
@@ -156,7 +170,7 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 1. 執行 `/agent-work-team-develop`（不帶 ID），確認正確找到該需求，`state.json` 前進到 `DEVELOPING`，`dev/progress.json` 正確初始化每個 task，且**確認已經切換到新分支 `agent-work-team/{request_id}`**（`git branch --show-current` 確認），`base_branch` 正確記錄原本的分支名稱，原本分支沒有被直接改動。
 2. 每個 task 依序執行，確認 `dev/T{n}-report.*`、`dev/T{n}-review.*` 正確產生，`dashboard.md` 也同步反映目前狀態，且所有 commit 都在 `agent-work-team/{request_id}` 分支上。
 3. 刻意讓某個 task 的實作有明顯問題（例如漏做 acceptance criteria），確認 reviewer 抓到、fix 迴圈觸發、`fix_rounds` 正確累加。
-4. 讓同一個 task 連續 2 次修正都過不了，確認流程正確停在 `Blocked` 並列出具體問題，且後面的 task 沒有被執行。
+4. 讓同一個 task 連續 2 次修正都過不了，確認流程正確停在 `Blocked` 並列出具體問題，且後面的 task 沒有被執行。手動把 `dev/progress.json` 某個 task 的 `fix_rounds` 改成 3（模擬 Controller 忘記自己停下來），確認 `hooks/enforce-block.mjs` 這個 hook 自己把 `state.json` 設成 Blocked、且訊息有明確顯示出來（不是被 suppressOutput 吃掉）。
 5. 全部 task 過關後，確認 `state.json` 前進到 `TESTING` 再到 `PENDING_FINAL_APPROVAL`，`dev/final-review.*` 正確產生並提示使用者去看檔案。
 6. 回覆 approve，確認 `state.json` 變成 `DEV_APPROVED`、`progress: 100`，且訊息裡正確告知目前變更所在的分支與 `base_branch`，**沒有自動執行任何 merge**。
 7. 對同一個已經有分支的需求（例如上次 Blocked 後重新執行）再跑一次 `/agent-work-team-develop`，確認它切換到既有分支繼續，而不是覆蓋或重建。
