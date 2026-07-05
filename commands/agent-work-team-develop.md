@@ -14,13 +14,18 @@ description: 啟動一個已核准需求的 Development 階段（Developer Agent
 
 用 Read 讀取 `.agent-work-team/requests/{request_id}/plan-spec.json`。檢查 `task_breakdown` 陣列裡每一項都是物件、且都有 `id`、`description`、`files`（非空陣列）、`acceptance_criteria` 四個欄位。若有任何一項不符合（例如是純字串，或缺欄位），告訴使用者具體是哪裡不符合、需要重新走 Plan/SA/SD 產出正確格式，然後停止，不要嘗試自動轉換或猜測補齊。
 
-## Step 3: 初始化 Development 狀態
+## Step 3: 建立開發分支並初始化 Development 狀態
 
-1. 用 Write 更新 `state.json`：`current_stage: "DEVELOPING"`，`progress: 70`，`updated` 改成今天日期（用 Bash 取得）。
-2. 用 Write 建立 `.agent-work-team/requests/{request_id}/dev/progress.json`，`tasks` 陣列要包含 `plan-spec.json` 的 `task_breakdown` 裡每一個 task 的 `id`，初始 `status` 都是 `"pending"`：
+1. 用 Bash 取得目前分支名稱：`git branch --show-current`，記錄為 `base_branch`（這可能是 `main`、`develop`、`feature/xyz` 或任何分支，不要假設一定是 `main`）。
+2. 用 Bash 檢查分支 `agent-work-team/{request_id}` 是否已存在：
+   - 若不存在：`git checkout -b agent-work-team/{request_id}` 建立並切換過去。
+   - 若已存在（例如上次執行 Blocked 後重新執行 `/agent-work-team-develop`）：`git checkout agent-work-team/{request_id}` 直接切換過去繼續，不要覆蓋或重建。
+3. 用 Write 更新 `state.json`：`current_stage: "DEVELOPING"`，`progress: 70`，`updated` 改成今天日期（用 Bash 取得）。
+4. 用 Write 建立 `.agent-work-team/requests/{request_id}/dev/progress.json`（若這個檔案已經存在，代表是恢復執行，不要覆蓋既有內容），`tasks` 陣列要包含 `plan-spec.json` 的 `task_breakdown` 裡每一個 task 的 `id`，初始 `status` 都是 `"pending"`，並記錄 `base_branch`：
 
 ```json
 {
+  "base_branch": "{base_branch}",
   "tasks": [
     {"id": "T1", "status": "pending", "commits": [], "fix_rounds": 0, "needs_context_rounds": 0}
   ],
@@ -57,5 +62,5 @@ description: 啟動一個已核准需求的 Development 階段（Developer Agent
 ## Step 6: Human Approval Gate
 
 1. 明確告訴使用者：「最終審查已產出於 `.agent-work-team/requests/{request_id}/dev/final-review.md`，請開啟該檔案確認內容，確認沒問題請回覆 approve，有問題請直接說明」。一定要請使用者去看實際檔案，不要只在對話裡貼摘要。
-2. 使用者回覆 **approve**（或同義詞如「可以」「沒問題」）：用 Write 更新 `state.json`：`current_stage: "DEV_APPROVED"`，`status: "Approved"`，`waiting_on: null`，`progress: 100`，`updated` 改成今天日期。告訴使用者這個需求的 Development 階段已完成，Knowledge Agent 是後續版本才會實作。流程到此結束。
+2. 使用者回覆 **approve**（或同義詞如「可以」「沒問題」）：用 Write 更新 `state.json`：`current_stage: "DEV_APPROVED"`，`status: "Approved"`，`waiting_on: null`，`progress: 100`，`updated` 改成今天日期。用 Read 讀取 `dev/progress.json` 的 `base_branch`，告訴使用者這個需求的 Development 階段已完成，變更都在 `agent-work-team/{request_id}` 分支上，原本的分支是 `{base_branch}`，要不要 merge、何時 merge 由使用者自己決定，這裡不會自動執行任何 merge，Knowledge Agent 是後續版本才會實作。流程到此結束。
 3. 使用者提出修改意見：用 Write 把 `state.json` 更新回 `current_stage: "DEVELOPING"`，`progress: 70`，把意見整理成清楚的修正需求，回到 Step 4 對應的 task（或視需要重新走一次整體 review），修完後重新走一次 Step 5。
