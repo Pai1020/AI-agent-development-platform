@@ -126,7 +126,7 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 - `current_stage` 是 `SPEC_APPROVED`：**全新開始**——正常走下面的執行流程，從頭初始化。
 - `current_stage` 是 `DEVELOPING`／`TESTING`／`PENDING_FINAL_APPROVAL`：**恢復執行**（不管上次是被 Blocked、還是流程中斷沒有明確 Blocked）。跳過初始化，直接沿用既有的 `dev/progress.json`、既有的 `state.json` 階段/進度，依下面的規則決定從哪裡繼續：
   - `dev/progress.json` 裡 `status: "done"` 的 task 一律跳過。
-  - 若有 task 的 `status` 是 `"blocked"`：使用者重新執行本身就是「我要重試」的訊號——把這個 task 的 `fix_rounds`、`needs_context_rounds` 都重設為 `0`、`status` 改成 `"in_progress"`，從 dispatch developer 重新開始。
+  - 若有 task 的 `status` 是 `"blocked"`：使用者重新執行本身就是「我要重試」的訊號——把這個 task 的 `fix_rounds`、`needs_context_rounds` 都重設為 `0`、`status` 改成 `"in_progress"`，**同時把 `state.json` 的 `status` 改回 `"Running"`、`waiting_on` 改回 `null`**（清掉先前 Blocked 留下的痕跡，避免 dashboard 顯示的狀態跟實際流程脫節），從 dispatch developer 重新開始。
   - 若有 task 的 `status` 是 `"in_progress"`（代表上次流程中斷、沒有明確 Blocked）：從 dispatch developer 重新開始處理這個 task，計數器維持原值不歸零。
   - 若所有 task 都 `"done"`，但 `state.json` 停在 `TESTING` 且 `status` 是 `"Blocked"`（代表卡在最終審查）：把 `final_review_fix_rounds` 重設為 `0`，直接重新 dispatch 最終審查。
   - 若所有 task 都 `"done"`、且 `current_stage` 已經是 `PENDING_FINAL_APPROVAL`：代表最終審查已通過、只是還沒收到人類的 approve/修改意見，直接回到 Human Approval Gate 等待。
