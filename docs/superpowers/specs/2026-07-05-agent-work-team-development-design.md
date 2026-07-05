@@ -83,6 +83,7 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 
 ```json
 {
+  "base_branch": "main",
   "tasks": [
     {"id": "T1", "status": "done", "commits": ["<sha>"], "fix_rounds": 0, "needs_context_rounds": 0},
     {"id": "T2", "status": "in_progress", "commits": [], "fix_rounds": 1, "needs_context_rounds": 0}
@@ -91,7 +92,7 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 }
 ```
 
-`status`：`pending` | `in_progress` | `done` | `blocked`。`final_review_fix_rounds` 是整個需求最終審查的修正次數計數器，用同一套「超過 2 次仍不過就 Blocked」規則。`needs_context_rounds` 是同一個 task 連續回報 `NEEDS_CONTEXT` 的次數計數器，同樣「超過 2 次就 Blocked」，避免 Developer 一直拿不到足夠資訊時無限重試下去。
+`base_branch` 是進入 Development 階段前使用者原本所在的分支（見上方「Git 分支策略」），所有 task 實際上是在 `agent-work-team/{request_id}` 這個新分支上進行的。`status`：`pending` | `in_progress` | `done` | `blocked`。`final_review_fix_rounds` 是整個需求最終審查的修正次數計數器，用同一套「超過 2 次仍不過就 Blocked」規則。`needs_context_rounds` 是同一個 task 連續回報 `NEEDS_CONTEXT` 的次數計數器，同樣「超過 2 次就 Blocked」，避免 Developer 一直拿不到足夠資訊時無限重試下去。
 
 ## 兩個新 Subagent
 
@@ -107,10 +108,21 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 - **工作**：審查 spec 合規性（有沒有做到 `acceptance_criteria`）與程式碼品質，仿照本次 session 使用的 review 格式（Strengths / Issues by severity / Assessment）。寫入 `dev/{task_id}-review.json` / `.md`。
 - **回報**：`Approved` | `Needs fixes` + Critical/Important/Minor 問題清單。
 
+## Git 分支策略
+
+`/agent-work-team-develop` 不會直接在使用者目前所在的分支上 commit。初始化時（見下方執行流程 Step 2）會：
+
+- 記錄目前分支為 `base_branch`。
+- 從 `base_branch` 切出新分支 `agent-work-team/{request_id}`（例如 `agent-work-team/RQ-001`），切換過去，所有 task 的 commit 都發生在這個分支上。
+- 若這個分支已經存在（例如上次執行中斷後重新執行），直接切換過去繼續，不要覆蓋或重建。
+- `base_branch` 寫進 `dev/progress.json`，供之後參考要 merge 回哪裡。
+
+**DEV_APPROVED 之後不會自動 merge。** Merge/push 是會影響共享分支狀態的操作，交給使用者自己決定何時、如何處理——command 只會在核准後的訊息裡明確告訴使用者目前變更在哪個分支（`agent-work-team/{request_id}`）、原本的 `base_branch` 是什麼。
+
 ## `/agent-work-team-develop` 執行流程
 
 1. 找到目標需求（見上）。驗證 `plan-spec.json` 的 `task_breakdown` 是新格式（每項都有 `id`/`description`/`files`/`acceptance_criteria`）；格式不符就停止並告訴使用者（見錯誤處理）。
-2. 更新 `state.json`：`current_stage: "DEVELOPING"`, `progress: 70`。建立 `dev/progress.json`，每個 task 初始 `status: "pending"`。
+2. 用 Bash 取得目前分支名稱，記錄為 `base_branch`；建立並切換到 `agent-work-team/{request_id}`（若已存在則直接切換過去）。更新 `state.json`：`current_stage: "DEVELOPING"`, `progress: 70`。建立 `dev/progress.json`：每個 task 初始 `status: "pending"`，並記錄 `base_branch`。
 3. **依序處理每個 task**（不平行）：
    a. 更新 `dev/progress.json` 該 task 為 `in_progress`。
    b. Dispatch `agent-work-team-developer`，帶入這個 task 的物件與 `technical_design`。
@@ -122,7 +134,7 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 4. **全部 task 都 `done`**：更新 `state.json`：`current_stage: "TESTING"`, `progress: 90`。針對整個需求的完整 diff（所有 task 的 commit range），跑一次最終審查（沿用同一份 reviewer 邏輯，但範圍是整個需求，不是單一 task），寫入 `dev/final-review.json` / `.md`。
 5. 更新 `state.json`：`current_stage: "PENDING_FINAL_APPROVAL"`, `progress: 95`, `status: "Pending Approval"`, `waiting_on: "Human Review"`。提示使用者：「最終審查已產出於 `dev/final-review.md`，請開啟確認，確認沒問題請回覆 approve，有問題請直接說明」。
 6. **Human Approval Gate**：
-   - 回覆 **approve** → `state.json`：`current_stage: "DEV_APPROVED"`, `status: "Approved"`, `waiting_on: null`, `progress: 100`。告訴使用者 Development 階段完成，Knowledge Agent 是後續版本。流程結束。
+   - 回覆 **approve** → `state.json`：`current_stage: "DEV_APPROVED"`, `status: "Approved"`, `waiting_on: null`, `progress: 100`。告訴使用者 Development 階段完成，變更都在 `agent-work-team/{request_id}` 分支上、原本的 `base_branch` 是 `{base_branch}`，要不要 merge、何時 merge 由使用者自己決定，Knowledge Agent 是後續版本。流程結束。
    - 提出修改意見 → 把意見整理成需要修的問題，重新走整體審查的 fix 流程（同單一 task 的 fix_rounds 邏輯，超過次數一樣停下來交給人）。
 
 ## 錯誤處理
@@ -141,9 +153,10 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 
 在測試專案裡，先跑完 Round 1 到 `SPEC_APPROVED`（確認 `plan-spec.json` 是新格式），再驗證：
 
-1. 執行 `/agent-work-team-develop`（不帶 ID），確認正確找到該需求，`state.json` 前進到 `DEVELOPING`，`dev/progress.json` 正確初始化每個 task。
-2. 每個 task 依序執行，確認 `dev/T{n}-report.*`、`dev/T{n}-review.*` 正確產生，`dashboard.md` 也同步反映目前狀態。
+1. 執行 `/agent-work-team-develop`（不帶 ID），確認正確找到該需求，`state.json` 前進到 `DEVELOPING`，`dev/progress.json` 正確初始化每個 task，且**確認已經切換到新分支 `agent-work-team/{request_id}`**（`git branch --show-current` 確認），`base_branch` 正確記錄原本的分支名稱，原本分支沒有被直接改動。
+2. 每個 task 依序執行，確認 `dev/T{n}-report.*`、`dev/T{n}-review.*` 正確產生，`dashboard.md` 也同步反映目前狀態，且所有 commit 都在 `agent-work-team/{request_id}` 分支上。
 3. 刻意讓某個 task 的實作有明顯問題（例如漏做 acceptance criteria），確認 reviewer 抓到、fix 迴圈觸發、`fix_rounds` 正確累加。
 4. 讓同一個 task 連續 2 次修正都過不了，確認流程正確停在 `Blocked` 並列出具體問題，且後面的 task 沒有被執行。
 5. 全部 task 過關後，確認 `state.json` 前進到 `TESTING` 再到 `PENDING_FINAL_APPROVAL`，`dev/final-review.*` 正確產生並提示使用者去看檔案。
-6. 回覆 approve，確認 `state.json` 變成 `DEV_APPROVED`、`progress: 100`。
+6. 回覆 approve，確認 `state.json` 變成 `DEV_APPROVED`、`progress: 100`，且訊息裡正確告知目前變更所在的分支與 `base_branch`，**沒有自動執行任何 merge**。
+7. 對同一個已經有分支的需求（例如上次 Blocked 後重新執行）再跑一次 `/agent-work-team-develop`，確認它切換到既有分支繼續，而不是覆蓋或重建。
