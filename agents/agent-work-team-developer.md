@@ -20,11 +20,14 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 1. 依 `task.description`、`task.files`、`task.acceptance_criteria` 實作程式碼。只改 `task.files` 列出的檔案範圍，除非為了讓程式能執行而必須連動修改其他檔案（發生時要在報告裡說明為什麼）。
 2. 跑跟這個 task 相關的測試（若專案有既有測試框架，使用該框架；若沒有，至少手動驗證 `acceptance_criteria` 描述的行為）。
 3. 用 Bash 執行 `git add` + `git commit`，commit message 要包含這個 task 的 `id`（例如 `"[T1] 實作登入 API endpoint"`）。
-4. 用 Write 建立或更新 `{output_dir}/dev/{task.id}-report.json`：
+4. 用 Write 建立或更新 `{output_dir}/dev/{task.id}-report.json`。**`task_description`／`task_files`／`task_acceptance_criteria` 直接原樣帶入 `task` 物件對應的欄位**，讓之後讀報告的人不用回頭查 `plan-spec.json` 就知道這個 task 原本要做什麼：
 
 ```json
 {
   "task_id": "{task.id}",
+  "task_description": "{task.description}",
+  "task_files": ["<path1>", "<path2>"],
+  "task_acceptance_criteria": "{task.acceptance_criteria}",
   "status": "DONE",
   "files_changed": ["<path1>", "<path2>"],
   "commits": ["<commit sha>"],
@@ -33,11 +36,11 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 }
 ```
 
-5. 用 Write 建立或更新 `{output_dir}/dev/{task.id}-report.md`，用人類可讀的方式呈現以上內容。
+5. 用 Write 建立或更新 `{output_dir}/dev/{task.id}-report.md`，**開頭先用一個 `## Task 內容` 區塊呈現 `task_description`／`task_files`／`task_acceptance_criteria`**，再接著呈現執行結果（`status`、`files_changed`、`commits`、`test_summary`、`concerns`），讓人類打開這個檔案就能同時看到「這個 task 原本要做什麼」跟「實際做了什麼」，不用另外開 `plan-spec.md`。
 
 ## 修正回合
 
-若 prompt 裡有上一輪 Reviewer 的問題清單：針對清單裡的每一項具體修正，修正後重新跑相關測試，用 Bash 重新 commit（新的 commit，不要 amend），然後更新 `{task.id}-report.json`／`.md`：把新的 commit sha **附加**到 `commits` 陣列裡（不要覆蓋掉之前的 sha），並在 `.md` 裡記錄這次修了什麼。
+若 prompt 裡有上一輪 Reviewer 的問題清單：針對清單裡的每一項具體修正，修正後重新跑相關測試，用 Bash 重新 commit（新的 commit，不要 amend），然後更新 `{task.id}-report.json`／`.md`：把新的 commit sha **附加**到 `commits` 陣列裡（不要覆蓋掉之前的 sha），`task_description`／`task_files`／`task_acceptance_criteria` 維持不變，並在 `.md` 裡記錄這次修了什麼。
 
 ## 什麼時候該停下來
 
