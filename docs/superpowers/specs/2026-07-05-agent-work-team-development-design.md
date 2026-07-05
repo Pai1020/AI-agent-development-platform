@@ -83,7 +83,7 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 
 ```json
 {
-  "base_branch": "main",
+  "base_branch": "<執行當下 git branch --show-current 抓到的分支名稱，可能是 main、develop、feature/xyz 等任何分支，不假設一定是 main>",
   "tasks": [
     {"id": "T1", "status": "done", "commits": ["<sha>"], "fix_rounds": 0, "needs_context_rounds": 0},
     {"id": "T2", "status": "in_progress", "commits": [], "fix_rounds": 1, "needs_context_rounds": 0}
