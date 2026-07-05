@@ -76,9 +76,12 @@ async function main() {
     if (!result.blocked || result.alreadyBlocked) {
       process.exit(0);
     }
-    process.stdout.write(
-      `⚠️ agent-work-team: 需求 ${result.requestId} 已超過重試上限（fix_rounds／needs_context_rounds／final_review_fix_rounds 其中之一超過 2），state.json 已被自動設為 Blocked。請立即停止 Development 流程、不要再重新 dispatch，並把這個狀況回報給使用者。\n`,
-    );
+    process.stdout.write(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'PostToolUse',
+        additionalContext: `⚠️ agent-work-team: 需求 ${result.requestId} 已超過重試上限（fix_rounds／needs_context_rounds／final_review_fix_rounds 其中之一超過 2），state.json 已被自動設為 Blocked。請立即停止 Development 流程、不要再重新 dispatch，並把這個狀況回報給使用者。`,
+      },
+    }));
     process.exit(0);
   } catch (err) {
     process.stderr.write(`enforce-block: failed to enforce block: ${err.message}\n`);
