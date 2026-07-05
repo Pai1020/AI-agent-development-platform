@@ -151,7 +151,18 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 - 只處理路徑符合 `.agent-work-team/requests/<id>/dev/progress.json` 的寫入，其他一律 exit 0、不做任何事、不輸出。
 - 讀取整份 `progress.json`，檢查每個 task 的 `fix_rounds`／`needs_context_rounds`，以及頂層的 `final_review_fix_rounds`，是否有任何一個超過 2。
 - 若有超過：讀取同一個需求的 `state.json`。若 `status` 還不是 `"Blocked"`，直接（不透過模型）把它改成 `status: "Blocked"`、`waiting_on: "Human"`，並呼叫 `sync-dashboard.mjs` 已經匯出的 `rebuildDashboard`（直接 import 使用，不要重複實作一份渲染邏輯）讓 `dashboard.md` 同步反映最新狀態。
-- **這個 hook 的輸出不能用 `suppressOutput`**——跟 dashboard 同步 hook 不同，這裡要讓 Controller 看得到，才能真的讓它停下來，而不是在背景默默改了 `state.json`、Controller 卻渾然不知繼續往下做。偵測到超過門檻時，印出明確的訊息告訴 Controller：這個 task／整體審查已經超過重試上限、`state.json` 已經被設為 Blocked，不要再重新 dispatch，應該停止流程並回報使用者。
+- **這個 hook 偵測到超過門檻時，必須用 `hookSpecificOutput.additionalContext` 這個結構把訊息餵回模型的 context**，格式是：
+
+  ```json
+  {
+    "hookSpecificOutput": {
+      "hookEventName": "PostToolUse",
+      "additionalContext": "⚠️ agent-work-team: 需求 {request_id} 已超過重試上限...state.json 已被自動設為 Blocked，請立即停止 Development 流程..."
+    }
+  }
+  ```
+
+  **不能只印純文字到 stdout。** PostToolUse hook 的純文字 stdout（即使沒有 `suppressOutput`）只會出現在人類看得到的 transcript／debug log 裡，**不會**被送進模型下一輪的 context——這點跟原本以為「不要 suppressOutput 就能讓 Controller 看到」的假設不同，已經實測／查證確認過。唯一能確定讓模型在下一輪讀到這段訊息、進而真的停下來的方式，就是這個 `additionalContext` 結構。跟 dashboard 同步 hook 不同，這裡不能用 `suppressOutput`／不能只印文字了事——沒有超過門檻、或已經是 Blocked 時，才維持完全不輸出任何東西。
 - 若沒有超過門檻（或已經是 Blocked，這次寫入沒有新增卡住的項目）：安靜結束，不輸出，避免每次 task 進度更新都被打擾。
 
 這樣一來，即使 Controller 自己的門檻檢查失手，`state.json` 的實際狀態也一定會被 hook correctly 設成 Blocked，不會出現「數字已經超過、但沒有真的停下來」的情況。
@@ -170,7 +181,7 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 1. 執行 `/agent-work-team-develop`（不帶 ID），確認正確找到該需求，`state.json` 前進到 `DEVELOPING`，`dev/progress.json` 正確初始化每個 task，且**確認已經切換到新分支 `agent-work-team/{request_id}`**（`git branch --show-current` 確認），`base_branch` 正確記錄原本的分支名稱，原本分支沒有被直接改動。
 2. 每個 task 依序執行，確認 `dev/T{n}-report.*`、`dev/T{n}-review.*` 正確產生，`dashboard.md` 也同步反映目前狀態，且所有 commit 都在 `agent-work-team/{request_id}` 分支上。
 3. 刻意讓某個 task 的實作有明顯問題（例如漏做 acceptance criteria），確認 reviewer 抓到、fix 迴圈觸發、`fix_rounds` 正確累加。
-4. 讓同一個 task 連續 2 次修正都過不了，確認流程正確停在 `Blocked` 並列出具體問題，且後面的 task 沒有被執行。手動把 `dev/progress.json` 某個 task 的 `fix_rounds` 改成 3（模擬 Controller 忘記自己停下來），確認 `hooks/enforce-block.mjs` 這個 hook 自己把 `state.json` 設成 Blocked、且訊息有明確顯示出來（不是被 suppressOutput 吃掉）。
+4. 讓同一個 task 連續 2 次修正都過不了，確認流程正確停在 `Blocked` 並列出具體問題，且後面的 task 沒有被執行。手動把 `dev/progress.json` 某個 task 的 `fix_rounds` 改成 3（模擬 Controller 忘記自己停下來），確認 `hooks/enforce-block.mjs` 這個 hook 自己把 `state.json` 設成 Blocked，且**確認是 Controller 在下一輪真的因為這個訊息改變行為（停止繼續 dispatch），不是只有你自己在 transcript 裡看到一行字**——這是驗證 `additionalContext` 機制真的有效，不是只驗證「有東西印出來」。
 5. 全部 task 過關後，確認 `state.json` 前進到 `TESTING` 再到 `PENDING_FINAL_APPROVAL`，`dev/final-review.*` 正確產生並提示使用者去看檔案。
 6. 回覆 approve，確認 `state.json` 變成 `DEV_APPROVED`、`progress: 100`，且訊息裡正確告知目前變更所在的分支與 `base_branch`，**沒有自動執行任何 merge**。
 7. 對同一個已經有分支的需求（例如上次 Blocked 後重新執行）再跑一次 `/agent-work-team-develop`，確認它切換到既有分支繼續，而不是覆蓋或重建。
