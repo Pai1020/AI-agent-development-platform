@@ -84,14 +84,14 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 ```json
 {
   "tasks": [
-    {"id": "T1", "status": "done", "commits": ["<sha>"], "fix_rounds": 0},
-    {"id": "T2", "status": "in_progress", "commits": [], "fix_rounds": 1}
+    {"id": "T1", "status": "done", "commits": ["<sha>"], "fix_rounds": 0, "needs_context_rounds": 0},
+    {"id": "T2", "status": "in_progress", "commits": [], "fix_rounds": 1, "needs_context_rounds": 0}
   ],
   "final_review_fix_rounds": 0
 }
 ```
 
-`status`：`pending` | `in_progress` | `done` | `blocked`。`final_review_fix_rounds` 是整個需求最終審查的修正次數計數器，用同一套「超過 2 次仍不過就 Blocked」規則。
+`status`：`pending` | `in_progress` | `done` | `blocked`。`final_review_fix_rounds` 是整個需求最終審查的修正次數計數器，用同一套「超過 2 次仍不過就 Blocked」規則。`needs_context_rounds` 是同一個 task 連續回報 `NEEDS_CONTEXT` 的次數計數器，同樣「超過 2 次就 Blocked」，避免 Developer 一直拿不到足夠資訊時無限重試下去。
 
 ## 兩個新 Subagent
 
