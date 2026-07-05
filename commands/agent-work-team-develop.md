@@ -45,7 +45,7 @@ description: 啟動一個已核准需求的 Development 階段（Developer Agent
 
 對 `task_breakdown` 裡的每一個 task，依序（不要平行）處理，**跳過 `dev/progress.json` 裡 `status` 已經是 `"done"` 的 task**：
 
-1. 若這個 task 目前 `status` 是 `"blocked"`（只會發生在恢復執行時）：使用者重新執行本身就是「已經處理過問題、要重試」的訊號——用 Write 把這個 task 的 `fix_rounds`、`needs_context_rounds` 都重設為 `0`，`status` 改成 `"in_progress"`，繼續下面第 2 點。
+1. 若這個 task 目前 `status` 是 `"blocked"`（只會發生在恢復執行時）：使用者重新執行本身就是「已經處理過問題、要重試」的訊號——用 Write 把這個 task 的 `fix_rounds`、`needs_context_rounds` 都重設為 `0`，`status` 改成 `"in_progress"`；同時用 Write 把 `state.json` 的 `status` 改回 `"Running"`、`waiting_on` 改回 `null`（清掉先前 Blocked 留下的痕跡，讓 dashboard 正確反映目前又在跑），繼續下面第 2 點。
 2. 若這個 task 目前 `status` 是 `"pending"` 或（恢復執行時）`"in_progress"`：用 Write 更新 `dev/progress.json`，把這個 task 的 `status` 改成 `"in_progress"`（若已經是就不用重複寫）。
 3. 用 Agent 工具 dispatch subagent（`subagent_type: "agent-work-team-developer"`，`model: sonnet`），在 prompt 裡提供 `request_id`、`output_dir`（`.agent-work-team/requests/{request_id}`）、這個 task 的完整物件、`plan-spec.json` 的 `technical_design`。
 4. 若回報 `NEEDS_CONTEXT`：用 Read 讀取 `dev/progress.json` 這個 task 目前的 `needs_context_rounds` 實際數值，+1 後用 Write 寫回去。**寫回去之後，用 Read 重新讀一次剛剛寫入的檔案，依讀到的實際數值（不要憑對話中的記憶判斷）決定下一步**：
