@@ -12,12 +12,15 @@ Claude Code plugin：一組 SDLC（軟體開發生命週期）開發流程自動
 ## 目前內容
 
 - `commands/agent-work-team.md` — 入口指令，啟動 PM → BA → Plan/SA/SD 規劃流程
+- `commands/agent-work-team-develop.md` — 入口指令，對已核准的需求啟動 Developer → Review/Test 的 Development 階段
 - `commands/agent-work-team-dashboard.md` — 備用指令，手動重建需求總覽檔案（正常情況下不需要呼叫）
 - `agents/agent-work-team-pm.md` — PM Agent（需求分類）
 - `agents/agent-work-team-plan-sd.md` — Plan/SA/SD Agent（技術規格產出）
+- `agents/agent-work-team-developer.md` — Developer Agent（依單一 task 實作程式碼）
+- `agents/agent-work-team-reviewer.md` — Review/Test Agent（審查單一 task 或整個需求）
 - `hooks/hooks.json` + `hooks/sync-dashboard.mjs` — PostToolUse hook，每次相關的 `state.json` 被寫入時在背景自動重建需求總覽，不會出現在對話裡
 - `skills/example-planning` — 佔位 skill（尚待後續功能取代）
 
 需求總覽是**使用者專案**裡自動維護的 `.agent-work-team/dashboard.md` 檔案，不在這個 plugin repo 裡，直接開來看即可，不需要呼叫任何指令。
 
-規劃階段的完整流程設計見 `docs/superpowers/specs/2026-07-04-agent-work-team-planning-design.md`，實作計畫見 `docs/superpowers/plans/`。
+規劃階段的完整流程設計見 `docs/superpowers/specs/2026-07-04-agent-work-team-planning-design.md`，Development 階段設計見 `docs/superpowers/specs/2026-07-05-agent-work-team-development-design.md`，實作計畫見 `docs/superpowers/plans/`。

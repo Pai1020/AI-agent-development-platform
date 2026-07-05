@@ -4,11 +4,12 @@
 
 ## 目前狀態
 
-- Planning 階段第一版已實作：`/agent-work-team` 驅動 PM → BA → Plan/SA/SD 流程
+- Planning 階段已實作：`/agent-work-team` 驅動 PM → BA → Plan/SA/SD 流程，止於 `SPEC_APPROVED`
+- Development 階段已實作：`/agent-work-team-develop <RQ-ID>` 驅動 Developer → Review/Test，逐一實作並審查每個 task，全部完成後跑整體審查，止於 `DEV_APPROVED`
 - 需求總覽是自動維護的 `.agent-work-team/dashboard.md` 檔案，由 `hooks/sync-dashboard.mjs`（`PostToolUse` hook）在背景同步，不是 command 自己做，也不會出現在對話裡；`/agent-work-team-dashboard` 只是備用的手動重建指令
 - 狀態與各階段產出以檔案形式存在**使用者專案**的 `.agent-work-team/requests/` 底下，這個 plugin repo 本身不存放任何需求資料
-- 完整設計見 `docs/superpowers/specs/2026-07-04-agent-work-team-planning-design.md`
-- Developer/Review/Knowledge Agent 尚未實作，屬於後續版本
+- 完整設計見 `docs/superpowers/specs/2026-07-04-agent-work-team-planning-design.md`（Planning）與 `docs/superpowers/specs/2026-07-05-agent-work-team-development-design.md`（Development）
+- Knowledge Agent 尚未實作，屬於後續版本
 
 ## 目錄慣例
 
