@@ -233,6 +233,8 @@ Using the same request that got `Blocked` during earlier Test 4 testing (or a fr
 5. Confirm the previously-blocked task's `fix_rounds`/`needs_context_rounds` in `dev/progress.json` were reset to `0` and it's being retried.
 6. Let it proceed — confirm tasks already `done` before the block are NOT reprocessed, and the flow continues normally from the retried task onward.
 7. If you blocked at the final-review stage instead of a task, confirm `final_review_fix_rounds` was reset to `0` and the final review re-ran instead of the per-task loop.
+8. Separately, simulate an interrupted-but-not-blocked run: manually set a task's `status` to `"in_progress"` (not `"blocked"`) in `dev/progress.json` while `state.json.status` is still `"Running"`, then re-run the command. Confirm it resumes that task from the developer dispatch without resetting its `fix_rounds`/`needs_context_rounds` (they should keep their prior values, unlike the `"blocked"` case).
+9. Separately, simulate resuming at the human-approval gate: manually set `state.json.current_stage` to `"PENDING_FINAL_APPROVAL"` with all tasks `"done"`, then re-run the command. Confirm it skips straight to Step 6 (Human Approval Gate) and prompts you to check `dev/final-review.md`, instead of re-running the per-task loop or the final review.
 
 - [ ] **Step 3: Manually confirm a task report is self-contained**
 

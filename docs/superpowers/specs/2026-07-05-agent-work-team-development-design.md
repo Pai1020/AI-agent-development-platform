@@ -16,8 +16,8 @@ Developer/Review 的協作方式，直接沿用本次 session 用來建置這個
 
 `/agent-work-team-develop <RQ-ID>`
 
-- 若省略 `<RQ-ID>`，自動掃描 `.agent-work-team/requests/*/state.json`，挑 `current_stage: "SPEC_APPROVED"` 且 `updated` 最新的一個。
-- 若指定的 `<RQ-ID>` 不存在，或存在但 `current_stage` 不是 `SPEC_APPROVED`（例如還在規劃中，或已經是 `DEV_APPROVED`），停止並告訴使用者目前狀態，不要繼續。
+- 若省略 `<RQ-ID>`，自動掃描 `.agent-work-team/requests/*/state.json`，挑 `current_stage` 為 `"SPEC_APPROVED"`、`"DEVELOPING"`、`"TESTING"` 或 `"PENDING_FINAL_APPROVAL"` 且 `updated` 最新的一個——後三者代表可以恢復執行的既有 Development 流程，見下方「恢復執行（Resume）」。
+- `current_stage` 是 `"SPEC_APPROVED"`：全新開始。是 `"DEVELOPING"`／`"TESTING"`／`"PENDING_FINAL_APPROVAL"`：恢復執行，不管 `status` 現在是不是 `"Blocked"`。是 `"DEV_APPROVED"`：已完成，停止並告知。是更早的 Planning 階段值：還沒核准進入 Development，停止並告知目前實際階段。指定的 `<RQ-ID>` 不存在時同樣停止並告知。
 
 ## `plan-spec.json` 的 `task_breakdown` 格式加強
 
@@ -125,10 +125,10 @@ CREATED → PM_TRIAGE → BA_CLARIFYING → SPEC_DRAFTING → PENDING_SPEC_APPRO
 
 - `current_stage` 是 `SPEC_APPROVED`：**全新開始**——正常走下面的執行流程，從頭初始化。
 - `current_stage` 是 `DEVELOPING`／`TESTING`／`PENDING_FINAL_APPROVAL`：**恢復執行**（不管上次是被 Blocked、還是流程中斷沒有明確 Blocked）。跳過初始化，直接沿用既有的 `dev/progress.json`、既有的 `state.json` 階段/進度，依下面的規則決定從哪裡繼續：
-  - `dev/progress.json` 裡 `status: "done"` 的 task 一律跳過。
-  - 若有 task 的 `status` 是 `"blocked"`：使用者重新執行本身就是「我要重試」的訊號——把這個 task 的 `fix_rounds`、`needs_context_rounds` 都重設為 `0`、`status` 改成 `"in_progress"`，**同時把 `state.json` 的 `status` 改回 `"Running"`、`waiting_on` 改回 `null`**（清掉先前 Blocked 留下的痕跡，避免 dashboard 顯示的狀態跟實際流程脫節），從 dispatch developer 重新開始。
-  - 若有 task 的 `status` 是 `"in_progress"`（代表上次流程中斷、沒有明確 Blocked）：從 dispatch developer 重新開始處理這個 task，計數器維持原值不歸零。
-  - 若所有 task 都 `"done"`，但 `state.json` 停在 `TESTING` 且 `status` 是 `"Blocked"`（代表卡在最終審查）：把 `final_review_fix_rounds` 重設為 `0`，直接重新 dispatch 最終審查。
+  - `dev/progress.json` 裡 `status: "done"` 的 task 一律跳過。若全部 task 都已經是 `"done"`，代表這次是卡在整體審查（見下方最後兩點），不要在 per-task 迴圈裡動 `state.json`，交給整體審查那一步自己判斷並清除。
+  - 若有 task 的 `status` 是 `"blocked"`：使用者重新執行本身就是「我要重試」的訊號——把這個 task 的 `fix_rounds`、`needs_context_rounds` 都重設為 `0`、`status` 改成 `"in_progress"`；同時若 `state.json` 目前的 `status` 是 `"Blocked"`，一併改回 `"Running"`、`waiting_on` 改回 `null`（清掉先前 Blocked 留下的痕跡，避免 dashboard 顯示的狀態跟實際流程脫節），從 dispatch developer 重新開始。
+  - 若有 task 的 `status` 是 `"in_progress"`（代表上次流程中斷、沒有明確 Blocked）：從 dispatch developer 重新開始處理這個 task，計數器維持原值不歸零；同時若 `state.json` 目前的 `status` 是 `"Blocked"`（邊界情況：中斷時被其他機制設成 Blocked），一併改回 `"Running"`、`waiting_on` 改回 `null`。
+  - 若所有 task 都 `"done"`，但 `state.json` 停在 `TESTING` 且 `status` 是 `"Blocked"`（代表卡在最終審查）：把 `final_review_fix_rounds` 重設為 `0`，**同時把 `state.json` 的 `status` 改回 `"Running"`、`waiting_on` 改回 `null`**（清掉先前 Blocked 留下的痕跡），直接重新 dispatch 最終審查。
   - 若所有 task 都 `"done"`、且 `current_stage` 已經是 `PENDING_FINAL_APPROVAL`：代表最終審查已通過、只是還沒收到人類的 approve/修改意見，直接回到 Human Approval Gate 等待。
 - `current_stage` 是 `DEV_APPROVED`：這個需求的 Development 階段已經完成，沒有需要恢復的，告訴使用者並停止。
 - `current_stage` 是其他 Planning 階段的值（`CREATED`／`PM_TRIAGE`／`BA_CLARIFYING`／`SPEC_DRAFTING`／`PENDING_SPEC_APPROVAL`）：這個需求還沒被核准進入 Development，告訴使用者目前實際的階段，然後停止。
