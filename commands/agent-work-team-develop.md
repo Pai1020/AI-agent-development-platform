@@ -75,5 +75,5 @@ description: 啟動一個已核准需求的 Development 階段（Developer Agent
 ## Step 6: Human Approval Gate
 
 1. 明確告訴使用者：「最終審查已產出於 `.agent-work-team/requests/{request_id}/dev/final-review.md`，請開啟該檔案確認內容，確認沒問題請回覆 approve，有問題請直接說明」。一定要請使用者去看實際檔案，不要只在對話裡貼摘要。
-2. 使用者回覆 **approve**（或同義詞如「可以」「沒問題」）：用 Write 更新 `state.json`：`current_stage: "DEV_APPROVED"`，`status: "Approved"`，`waiting_on: null`，`progress: 100`，`updated` 改成今天日期。用 Read 讀取 `dev/progress.json` 的 `base_branch`，告訴使用者這個需求的 Development 階段已完成，變更都在 `agent-work-team/{request_id}` 分支上，原本的分支是 `{base_branch}`，要不要 merge、何時 merge 由使用者自己決定，這裡不會自動執行任何 merge，Knowledge Agent 是後續版本才會實作。流程到此結束。
+2. 使用者回覆 **approve**（或同義詞如「可以」「沒問題」）：用 Write 更新 `state.json`：`current_stage: "DEV_APPROVED"`，`status: "Approved"`，`waiting_on: null`，`progress: 100`，`updated` 改成今天日期。用 Read 讀取 `dev/progress.json` 的 `base_branch`，告訴使用者這個需求的 Development 階段已完成，變更都在 `agent-work-team/{request_id}` 分支上，原本的分支是 `{base_branch}`，要不要 merge、何時 merge 由使用者自己決定，這裡不會自動執行任何 merge，後續請執行 `/agent-work-team-knowledge <request_id>` 將需求推進至 DONE（整理知識進 wiki）。流程到此結束。
 3. 使用者提出修改意見：用 Write 把 `state.json` 更新回 `current_stage: "DEVELOPING"`，`progress: 70`，把意見整理成清楚的修正需求，回到 Step 4 對應的 task（把該 task 的 `status` 改回 `"in_progress"`，或視需要重新走一次整體 review），修完後重新走一次 Step 5。
