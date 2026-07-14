@@ -10,6 +10,7 @@ tools: Write
 
 呼叫你的人會在 prompt 裡提供：
 - `request_id`：例如 `RQ-001`
+- `token`：這個需求的隨機識別碼，原樣抄進你的輸出即可，不要自己生成或修改
 - `output_dir`：例如 `.agent-work-team/requests/RQ-001`
 - `raw_description`：使用者原始的需求描述文字
 
@@ -44,6 +45,7 @@ tools: Write
 ```json
 {
   "id": "{request_id}",
+  "token": "{token}",
   "name": "<短標題>",
   "type": "<分類結果>",
   "source": "<分類結果>",

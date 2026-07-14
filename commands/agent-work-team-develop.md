@@ -13,6 +13,7 @@ description: 啟動一個已核准需求的 Development 階段（Developer Agent
    - `"DEVELOPING"`、`"TESTING"` 或 `"PENDING_FINAL_APPROVAL"`：**恢復執行**（`is_resume = true`），不管 `status` 現在是 `"Blocked"` 還是其他值。
    - `"DEV_APPROVED"`：告訴使用者這個需求的 Development 階段已經完成，沒有需要恢復的，然後停止。
    - 其他值（`"CREATED"`／`"PM_TRIAGE"`／`"BA_CLARIFYING"`／`"SPEC_DRAFTING"`／`"PENDING_SPEC_APPROVAL"`）：告訴使用者這個需求還沒被核准進入 Development（目前實際的 `current_stage` 是什麼），然後停止。
+4. **token 一致性檢查**：用 Read 讀取 `pm-triage.json.token`，跟剛剛讀到的 `state.json.token` 比對。若兩者不一致，代表 `{request_id}` 這個編號疑似被重用過（例如原本的需求資料夾被刪除、`RQ-ID` 分配給了新需求，殘留檔案彼此不屬於同一個需求），把這個疑慮具體告訴使用者，請他們人工確認，然後停止整個流程，不要繼續。
 
 ## Step 2: 驗證 `task_breakdown` 格式
 
@@ -23,7 +24,7 @@ description: 啟動一個已核准需求的 Development 階段（Developer Agent
 1. 用 Bash 取得目前分支名稱：`git branch --show-current`。
 2. 用 Bash 檢查分支 `agent-work-team/{request_id}` 是否已存在：
    - 若不存在：`git checkout -b agent-work-team/{request_id}` 建立並切換過去。
-   - 若已存在：`git checkout agent-work-team/{request_id}` 直接切換過去繼續，不要覆蓋或重建。
+   - 若已存在：**先做 token 一致性檢查再切換**——用 Read 讀取 `state.json.token` 與 `pm-triage.json.token`，若兩者不一致，代表 `{request_id}` 這個編號疑似被重用過（例如原本的需求資料夾被刪除、`RQ-ID` 分配給了新需求，但舊分支還留著），**不要**切換到這個分支，把這個疑慮具體告訴使用者，請他們人工確認這個分支是否該保留或刪除，然後停止整個流程。若一致，才用 `git checkout agent-work-team/{request_id}` 直接切換過去繼續，不要覆蓋或重建。
    （這一步不管全新開始或恢復執行都要做。）
 3. 若 `is_resume` 是 `false`（全新開始）：
    - 用 Write 更新 `state.json`：`current_stage: "DEVELOPING"`，`progress: 70`，`updated` 改成今天日期（用 Bash 取得）。
