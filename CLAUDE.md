@@ -28,3 +28,10 @@
 - 新增功能前先確認是否屬於 Planning 階段範圍，跨階段功能應拆成獨立的 spec/plan。
 - 佔位檔案（example-*）在對應真正功能實作完成後應被取代，而不是保留。
 - 對這個專案進行任何調整或開發，都要另外開一條分支處理，不要直接在 `main` 上修改；開發人員確認過（review／測試通過）才能 merge 回 `main`。
+
+## Prompt 編排確定性協作
+
+- 修改 command／agent／hook 的 stage、status、dispatch、resume、retry、approval、artifact 契約，或新增 Controller／state machine／event／schema／validator／action log／Git 副作用管理前，先讀 `docs/architecture/prompt-orchestration-determinism.md`。
+- 完成上述相關變更時，在同一工作中更新該 living document 的 metadata、決策狀態、未決問題、implementation mapping 與實際驗證證據，並同步受影響的現況文件。
+- 該文件中的 `Proposed` 不等於已核准；沒有使用者明確核准，不得自行改成 `Approved` 或據此擴大實作範圍。
+- `docs/manual-testing-checklist.md` 已過時，必須忽略，不得作為現況、覆蓋率或驗證證據。
