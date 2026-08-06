@@ -15,11 +15,18 @@ description: 啟動一個已核准需求的 Development 階段（Developer Agent
    - 其他值（`"CREATED"`／`"PM_TRIAGE"`／`"BA_CLARIFYING"`／`"SPEC_DRAFTING"`／`"PENDING_SPEC_APPROVAL"`）：告訴使用者這個需求還沒被核准進入 Development（目前實際的 `current_stage` 是什麼），然後停止。
 4. **token 一致性檢查**：用 Read 讀取 `pm-triage.json.token`，跟剛剛讀到的 `state.json.token` 比對。若兩者不一致，代表 `{request_id}` 這個編號疑似被重用過（例如原本的需求資料夾被刪除、`RQ-ID` 分配給了新需求，殘留檔案彼此不屬於同一個需求），把這個疑慮具體告訴使用者，請他們人工確認，然後停止整個流程，不要繼續。
 
-## Step 2: 驗證 `task_breakdown` 格式
+## Step 2: 讀取 commit 模式設定
+
+1. 用 Read 讀取 `.agent-work-team/requests/{request_id}/planning/dev-config.json`。
+2. 若檔案存在且 `commit_mode` 是 `"squash"` 或 `"per_task"`：記下這個值（後面用 `{commit_mode}` 代稱），供 Step 7 使用，繼續下一步。
+3. 若檔案不存在，或存在但沒有合法的 `commit_mode`（例如這個需求是在這個功能上線前建立、已經 `SPEC_APPROVED` 甚至已經在 Development 中）：停下來，用 AskUserQuestion 工具問使用者這個需求要用哪種 commit 模式，把 `squash`（整個需求最後在分支上只留一個 commit）跟 `per_task`（目前預設行為，每個 task 各自 commit）列成兩個選項讓使用者選，不要用純文字問以免拿到無法對應到 `squash`／`per_task` 的模糊回答。拿到回答後，用 Write 建立（或覆寫）`planning/dev-config.json`——選 squash 就寫 `{ "commit_mode": "squash" }`，選 per_task 就寫 `{ "commit_mode": "per_task" }`，再繼續下一步。
+4. 這一步不管全新開始或恢復執行（`is_resume` 為 `true` 或 `false`）都要做。
+
+## Step 3: 驗證 `task_breakdown` 格式
 
 用 Read 讀取 `.agent-work-team/requests/{request_id}/plan-spec.json`。檢查 `task_breakdown` 陣列裡每一項都是物件、且都有 `id`、`description`、`files`（非空陣列）、`acceptance_criteria` 四個欄位。若有任何一項不符合（例如是純字串，或缺欄位），告訴使用者具體是哪裡不符合、需要重新走 Plan/SA/SD 產出正確格式，然後停止，不要嘗試自動轉換或猜測補齊。這個檢查不管全新開始或恢復執行都要做。
 
-## Step 3: 建立/沿用開發分支，依情況初始化
+## Step 4: 建立/沿用開發分支，依情況初始化
 
 1. 用 Bash 取得目前分支名稱：`git branch --show-current`。
 2. 用 Bash 檢查分支 `agent-work-team/{request_id}` 是否已存在：
@@ -28,7 +35,7 @@ description: 啟動一個已核准需求的 Development 階段（Developer Agent
    （這一步不管全新開始或恢復執行都要做。）
 3. 若 `is_resume` 是 `false`（全新開始）：
    - 用 Write 更新 `state.json`：`current_stage: "DEVELOPING"`，`progress: 70`，`updated` 改成今天日期（用 Bash 取得）。
-   - 用 Write 建立 `.agent-work-team/requests/{request_id}/dev/progress.json`，`tasks` 陣列要包含 `plan-spec.json` 的 `task_breakdown` 裡每一個 task 的 `id`，初始 `status` 都是 `"pending"`，並記錄 `base_branch`（用 Step 3.1 取得的分支名稱）：
+   - 用 Write 建立 `.agent-work-team/requests/{request_id}/dev/progress.json`，`tasks` 陣列要包含 `plan-spec.json` 的 `task_breakdown` 裡每一個 task 的 `id`，初始 `status` 都是 `"pending"`，並記錄 `base_branch`（用 Step 4.1 取得的分支名稱）：
 
 ```json
 {
@@ -40,11 +47,11 @@ description: 啟動一個已核准需求的 Development 階段（Developer Agent
 }
 ```
 
-4. 若 `is_resume` 是 `true`（恢復執行）：**不要**更動 `state.json` 的 `current_stage`／`progress`，**不要**重建或覆寫 `dev/progress.json`。用 Read 讀取現有的 `dev/progress.json`，供 Step 4／5 判斷從哪裡繼續。
+4. 若 `is_resume` 是 `true`（恢復執行）：**不要**更動 `state.json` 的 `current_stage`／`progress`，**不要**重建或覆寫 `dev/progress.json`。用 Read 讀取現有的 `dev/progress.json`，供 Step 5／6 判斷從哪裡繼續。
 
-## Step 4: 依序處理每個 task
+## Step 5: 依序處理每個 task
 
-對 `task_breakdown` 裡的每一個 task，依序（不要平行）處理，**跳過 `dev/progress.json` 裡 `status` 已經是 `"done"` 的 task**（若全部 task 都已經是 `"done"`，代表這次恢復執行卡在 Step 5 的整體審查，不是卡在某個 task——不要在這裡動 `state.json` 的 `status`，直接跳過整個 Step 4，交給 Step 5 自己判斷並清除）：
+對 `task_breakdown` 裡的每一個 task，依序（不要平行）處理，**跳過 `dev/progress.json` 裡 `status` 已經是 `"done"` 的 task**（若全部 task 都已經是 `"done"`，代表這次恢復執行卡在 Step 6 的整體審查，不是卡在某個 task——不要在這裡動 `state.json` 的 `status`，直接跳過整個 Step 5，交給 Step 6 自己判斷並清除）：
 
 1. 若這個 task 目前 `status` 是 `"blocked"`（只會發生在恢復執行時）：使用者重新執行本身就是「已經處理過問題、要重試」的訊號——用 Write 把這個 task 的 `fix_rounds`、`needs_context_rounds` 都重設為 `0`，`status` 改成 `"in_progress"`；同時若 `state.json` 目前的 `status` 是 `"Blocked"`，一併改回 `"Running"`、`waiting_on` 改回 `null`（清掉先前 Blocked 留下的痕跡，讓 dashboard 正確反映目前又在跑），繼續下面第 2 點。
 2. 若這個 task 目前 `status` 是 `"pending"` 或（恢復執行時）`"in_progress"`：用 Write 更新 `dev/progress.json`，把這個 task 的 `status` 改成 `"in_progress"`（若已經是就不用重複寫）；若 `state.json` 目前的 `status` 是 `"Blocked"`（例如上次流程中斷但沒被明確判定 Blocked，是被其他機制設成 Blocked 的邊界情況），一併改回 `"Running"`、`waiting_on` 改回 `null`。
@@ -61,20 +68,31 @@ description: 啟動一個已核准需求的 Development 階段（Developer Agent
      - 若這個實際數值超過 2：把這個 task 的 `status` 改成 `"blocked"`，`state.json` 同第 5 點設為 Blocked，把還沒解決的 Critical/Important 問題列給使用者，**停止整個 Development 流程**。
      - 否則：重新 dispatch `agent-work-team-developer`（同一個 task），prompt 裡附上 Reviewer 這輪的具體問題清單，修完後回到第 6 點重新走一次 review。
 
-## Step 5: 全部 task 完成後的整體審查
+## Step 6: 全部 task 完成後的整體審查
 
 1. 確認 `dev/progress.json` 裡每個 task 的 `status` 都是 `"done"`。
-2. 若 `state.json` 目前的 `current_stage` 已經是 `"PENDING_FINAL_APPROVAL"`（恢復執行、且最終審查先前已通過只是還沒收到人類回覆）：跳過這個 Step，直接進 Step 6 等待使用者回覆。
+2. 若 `state.json` 目前的 `current_stage` 已經是 `"PENDING_FINAL_APPROVAL"`（恢復執行、且最終審查先前已通過只是還沒收到人類回覆）：跳過這個 Step，直接進 Step 7 等待使用者回覆。
 3. 若 `state.json` 目前的 `current_stage` 是 `"TESTING"` 且 `status` 是 `"Blocked"`（恢復執行、卡在最終審查階段）：用 Write 把 `dev/progress.json` 的 `final_review_fix_rounds` 重設為 `0`，`state.json` 的 `status` 改回 `"Running"`、`waiting_on` 改回 `null`，繼續下面第 5 點重新 dispatch。
 4. 否則（全新走到這裡）：用 Write 更新 `state.json`：`current_stage: "TESTING"`，`progress: 90`，`updated` 改成今天日期。
 5. 用 Agent 工具 dispatch subagent（`subagent_type: "agent-work-team-reviewer"`，`model: sonnet`），在 prompt 裡提供 `request_id`、`output_dir`、`scope: "final"`、整個 `plan-spec.json`、完整 commit range——用 `git diff {dev/progress.json 裡第一個 task 的第一個 commit}^..HEAD` 取得從 Development 階段開始到現在的完整差異，涵蓋所有 task 的 commit。
 6. Reviewer 回報 `Needs fixes`：用 Read 讀取 `dev/progress.json` 目前的 `final_review_fix_rounds` 實際數值，+1 後用 Write 寫回去。**寫回去之後，用 Read 重新讀一次剛剛寫入的檔案，依讀到的實際數值（不要憑對話中的記憶判斷）決定下一步**：
    - 若這個實際數值超過 2：把 `state.json` 的 `status` 改成 `"Blocked"`、`waiting_on: "Human"`，把問題列給使用者，停止流程。
-   - 否則：用 Write 把 `state.json` 更新回 `current_stage: "DEVELOPING"`，`progress: 70`（讓 dashboard 正確反映目前又在修改程式碼），把問題依內容對應到相關的 task，回到 Step 4 對應的 task 重新處理（把該 task 的 `status` 改回 `"in_progress"`），修完後回到本步驟第 5 點重新走一次整體審查。
+   - 否則：用 Write 把 `state.json` 更新回 `current_stage: "DEVELOPING"`，`progress: 70`（讓 dashboard 正確反映目前又在修改程式碼），把問題依內容對應到相關的 task，回到 Step 5 對應的 task 重新處理（把該 task 的 `status` 改回 `"in_progress"`），修完後回到本步驟第 5 點重新走一次整體審查。
 7. Reviewer 回報 `Approved`：用 Write 更新 `state.json`：`current_stage: "PENDING_FINAL_APPROVAL"`，`progress: 95`，`status: "Pending Approval"`，`waiting_on: "Human Review"`，`updated` 改成今天日期。
 
-## Step 6: Human Approval Gate
+## Step 7: Human Approval Gate
 
 1. 明確告訴使用者：「最終審查已產出於 `.agent-work-team/requests/{request_id}/dev/final-review.md`，請開啟該檔案確認內容，確認沒問題請回覆 approve，有問題請直接說明」。一定要請使用者去看實際檔案，不要只在對話裡貼摘要。
-2. 使用者回覆 **approve**（或同義詞如「可以」「沒問題」）：用 Write 更新 `state.json`：`current_stage: "DEV_APPROVED"`，`status: "Approved"`，`waiting_on: null`，`progress: 100`，`updated` 改成今天日期。用 Read 讀取 `dev/progress.json` 的 `base_branch`，告訴使用者這個需求的 Development 階段已完成，變更都在 `agent-work-team/{request_id}` 分支上，原本的分支是 `{base_branch}`，要不要 merge、何時 merge 由使用者自己決定，這裡不會自動執行任何 merge，後續請執行 `/agent-work-team-knowledge <request_id>` 將需求推進至 DONE（整理知識進 wiki）。流程到此結束。
-3. 使用者提出修改意見：用 Write 把 `state.json` 更新回 `current_stage: "DEVELOPING"`，`progress: 70`，把意見整理成清楚的修正需求，回到 Step 4 對應的 task（把該 task 的 `status` 改回 `"in_progress"`，或視需要重新走一次整體 review），修完後重新走一次 Step 5。
+2. 使用者回覆 **approve**（或同義詞如「可以」「沒問題」）：
+   1. 用 Read 讀取 `dev/progress.json` 的 `base_branch`。
+   2. 若 Step 2 記下的 `{commit_mode}` 是 `"squash"`：執行一次性 squash——
+      - 用 Bash 執行 `git status --porcelain -- . ':!.agent-work-team'`，確認除了 `.agent-work-team/`（plugin 自己的協調用中繼資料，本來就可能還沒 commit——Controller 與 Developer subagent 在每個 task commit 之後，仍會持續寫入 `dev/{task.id}-report.json`、`dev/progress.json`、`state.json` 等檔案，這些檔案本來就不會被納入任何 commit）以外，工作目錄是乾淨的。若這個範圍內的輸出不是空字串，代表除了 plugin 中繼資料以外還有其他未 commit 的變更，停下來把實際的 `git status` 內容告訴使用者，不要自動 commit 或捨棄任何東西，**停止整個流程**。
+      - 用 Bash 執行 `git merge-base HEAD {base_branch}`，取得 merge-base sha。
+      - 用 Bash 執行 `git reset --soft {merge-base sha}`。
+      - 用 Read 讀取 `plan-spec.json` 的 `requirement_summary`；用 Read 讀取 `dev/progress.json`，取出 `tasks` 陣列裡每個 task 的 `id`，用逗號連接。
+      - 用 Write 把 commit message（`[{request_id}] {requirement_summary}（{逗號連接的 task id 清單}）`）寫進暫存檔 `.agent-work-team/requests/{request_id}/dev/.squash-commit-message.txt`，避免 `requirement_summary` 這種自由文字裡若包含 `"` 或反引號等字元、直接內插進 shell 雙引號字串會有跳脫問題。
+      - 用 Bash 執行 `git commit -F .agent-work-team/requests/{request_id}/dev/.squash-commit-message.txt`。
+   3. 若 `{commit_mode}` 是 `"per_task"`：不執行任何 Git 操作，維持現有的多 commit 歷史（跟現行行為完全一致）。
+   4. 用 Write 更新 `state.json`：`current_stage: "DEV_APPROVED"`，`status: "Approved"`，`waiting_on: null`，`progress: 100`，`updated` 改成今天日期。
+   5. 告訴使用者這個需求的 Development 階段已完成，變更都在 `agent-work-team/{request_id}` 分支上（若 `commit_mode` 是 `squash`，分支上現在只有一個 commit；若是 `per_task`，維持每個 task／每次修正各自的 commit 歷史），原本的分支是 `{base_branch}`，要不要 merge、何時 merge 由使用者自己決定，這裡不會自動執行任何 merge，後續請執行 `/agent-work-team-knowledge <request_id>` 將需求推進至 DONE（整理知識進 wiki）。流程到此結束。
+3. 使用者提出修改意見：用 Write 把 `state.json` 更新回 `current_stage: "DEVELOPING"`，`progress: 70`，把意見整理成清楚的修正需求，回到 Step 5 對應的 task（把該 task 的 `status` 改回 `"in_progress"`，或視需要重新走一次整體 review），修完後重新走一次 Step 6。
