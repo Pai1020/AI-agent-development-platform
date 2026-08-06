@@ -133,7 +133,19 @@ openssl rand -hex 4 2>/dev/null || printf '%04x%04x' $RANDOM $RANDOM
 1. 明確告訴使用者：「Spec 已產出於 `.agent-work-team/requests/{request_id}/plan-spec.md`，請開啟該檔案確認內容，確認沒問題請回覆 approve，有問題請直接說明」。不要只在對話裡貼摘要就當作足夠——一定要請使用者去看實際檔案。
 2. 使用者回覆 **approve**（或同義詞如「可以」「沒問題」）：
    1. 先用 Write 更新 checkpoint：`pending: null`，`sub_step: "SPEC_APPROVED"`，`reason: null`，`updated` 改成今天日期（保留檔案，不刪除）。
-   2. 用 Read 讀取 `plan-spec.json` 的 `task_breakdown`，用 Write 建立 `.agent-work-team/requests/{request_id}/task-summary.md`——一份純粹方便掃描「後續有哪些工作」的**靜態快照**，不是即時進度表（Development 開始後每個 task 的實際完成狀態要看 `dev/progress.json` 或 `.agent-work-team/dashboard.md`，這份檔案之後不會再更新）：
+   2. 用 AskUserQuestion 工具問使用者：這次 Development 要用哪種 commit 模式，把 `squash`（整個需求最後在 `agent-work-team/{request_id}` 分支上只留一個 commit，涵蓋所有 task 與所有修正回合）跟 `per_task`（目前預設行為，每個 task 各自 commit，修正回合各自新增 commit）列成兩個選項讓使用者選，不要用純文字問以免拿到無法對應到 `squash`／`per_task` 的模糊回答。拿到回答後，用 Write 建立 `.agent-work-team/requests/{request_id}/planning/dev-config.json`——選 squash 就寫：
+
+```json
+{ "commit_mode": "squash" }
+```
+
+選 per_task 就寫：
+
+```json
+{ "commit_mode": "per_task" }
+```
+
+   3. 用 Read 讀取 `plan-spec.json` 的 `task_breakdown`，用 Write 建立 `.agent-work-team/requests/{request_id}/task-summary.md`——一份純粹方便掃描「後續有哪些工作」的**靜態快照**，不是即時進度表（Development 開始後每個 task 的實際完成狀態要看 `dev/progress.json` 或 `.agent-work-team/dashboard.md`，這份檔案之後不會再更新）：
 
 ```markdown
 # Task 總表 — {request_id}
@@ -148,8 +160,8 @@ openssl rand -hex 4 2>/dev/null || printf '%04x%04x' $RANDOM $RANDOM
 共 {task_breakdown 陣列長度} 個 task。完整的驗收標準與技術設計脈絡請見 `plan-spec.md`。
 ```
 
-   3. 用 Write 更新 `state.json`：`current_stage: "SPEC_APPROVED"`，`status: "Approved"`，`waiting_on: null`，`progress: 50`，`updated` 改成今天日期。
-   4. 告訴使用者這個需求的 Planning 階段已完成，任務總表已產出於 `.agent-work-team/requests/{request_id}/task-summary.md`，可以執行 `/agent-work-team-develop {request_id}` 進入 Development 階段。流程到此結束。
+   4. 用 Write 更新 `state.json`：`current_stage: "SPEC_APPROVED"`，`status: "Approved"`，`waiting_on: null`，`progress: 50`，`updated` 改成今天日期。
+   5. 告訴使用者這個需求的 Planning 階段已完成，任務總表已產出於 `.agent-work-team/requests/{request_id}/task-summary.md`，可以執行 `/agent-work-team-develop {request_id}` 進入 Development 階段。流程到此結束。
 3. 使用者提出修改意見：
    - 若意見是針對需求本身（範圍、AC 有誤）→ 回到 Step 3，重新跟使用者釐清，釐清完重新寫一次 `ba-requirement.json`／`.md`，再重新走 Step 4。
    - 若意見只是針對技術設計內容（Technical Design、Task Breakdown 等）→ 直接重新走 Step 4，dispatch 時在 prompt 裡附上使用者的修改意見，不需要重新走 BA。
