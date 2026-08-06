@@ -22,8 +22,8 @@ Development  → DEVELOPING → TESTING → PENDING_FINAL_APPROVAL → DEV_APPRO
 Knowledge    → PENDING_KNOWLEDGE_APPROVAL → DONE
 ```
 
-- **Planning**（`/agent-work-team`）：PM 分類 → BA 逐題釐清需求與驗收標準 → Plan/SA/SD 產出技術規格與任務拆解，止於人工核准 spec（`SPEC_APPROVED`）。核准當下會多產一份 `task-summary.md` 任務快照，方便進 Development 前掃過有哪些工作。
-- **Development**（`/agent-work-team-develop`）：在專屬分支 `agent-work-team/<RQ-ID>` 上，Developer 逐一實作每個 task、Reviewer 逐一審查，全部通過後再跑一次整體審查，止於人工核准（`DEV_APPROVED`）。是否 merge 回原分支由你自己決定，流程不會自動 merge。
+- **Planning**（`/agent-work-team`）：PM 分類 → BA 逐題釐清需求與驗收標準 → Plan/SA/SD 產出技術規格與任務拆解，止於人工核准 spec（`SPEC_APPROVED`）。核准當下會多產一份 `task-summary.md` 任務快照，方便進 Development 前掃過有哪些工作，同時會問你這次 Development 要用哪種 commit 模式（見下）。
+- **Development**（`/agent-work-team-develop`）：在專屬分支 `agent-work-team/<RQ-ID>` 上，Developer 逐一實作每個 task、Reviewer 逐一審查，全部通過後再跑一次整體審查，止於人工核准（`DEV_APPROVED`）。是否 merge 回原分支由你自己決定，流程不會自動 merge。分支最終留幾個 commit 可選：`squash`（整個需求最終只留一個 commit）或 `per_task`（預設，每個 task／修正回合各自 commit），選擇結果存在 `planning/dev-config.json`，`squash` 只在最終人工核准當下一次性執行，過程中每個 task 的開發與審查不受影響。
 - **Knowledge**（`/agent-work-team-knowledge`）：把已核准的開發成果整理進 Obsidian wiki（`.agent-work-team/wiki/`，或 `CLAUDE.md` 指定路徑），優先更新既有筆記、避免重複知識，止於人工核准（`DONE`）。
 
 ## 指令一覽
@@ -72,6 +72,7 @@ Knowledge    → PENDING_KNOWLEDGE_APPROVAL → DONE
 - Development：`specs/2026-07-05-agent-work-team-development-design.md`
 - Knowledge Agent：`specs/2026-07-07-agent-work-team-knowledge-design.md`
 - Planning 軟停持久化 + Resume/Help + Token 防護：`specs/2026-07-14-agent-work-team-planning-resume-design.md`
+- Development commit 模式（squash／per_task）：`specs/2026-08-07-agent-work-team-develop-commit-mode-design.md`
 
 整體平台願景見 `AI_Development_Platform_MVP_v4.md`。
 
