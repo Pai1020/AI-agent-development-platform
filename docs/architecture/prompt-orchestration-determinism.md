@@ -4,7 +4,7 @@ document_type: living-architecture-discussion
 status: Accepted Direction
 decision_status: Approved
 created: 2026-07-20
-updated: 2026-08-07
+updated: 2026-08-20
 last_verified_against_code: 2026-08-07
 maintained_by: Human and Claude Code
 ---
@@ -588,6 +588,7 @@ Q4-Q6 已確立 approval、validator 與 migration contract，但不代表 `LIM-
 | DET-Q6 | 現有 JSON／Markdown 如何向新 protocol 漸進相容？ | Decided | 採 side-by-side protocol；安裝不自動遷移；explicit dry-run、人工確認、snapshot、stage-aware converter 與 atomic validation 後才遷移 |
 | DET-Q7 | Host-neutral core 採何種語言、包裝與配布方式？ | Decided | PowerShell 7+ 為主；CLI 只負責安裝／管理；core 隨 Claude plugin／Copilot VS Code Chat adapter 一起安裝並檢查版本相容性 |
 | DET-Q8 | GitHub Copilot 的 prompt／skill／agent／hook 如何分工？ | Decided | VS Code Chat user-facing custom agent 作入口；hidden role subagents 執行單步工作；core 唯一掌握流程；hooks 第二道防線；short instructions 必要；skills／prompt files 第一版非必要 |
+| DET-Q9 | Development 期間的需求變更如何落地？哪些部分留給 core？ | Open | 已有 Proposed 分階段設計（Phase 1 偵測／記錄／路由、Phase 2 additive 套用），尚未經使用者核准；見下方 DET-Q9 段落 |
 
 ### DET-Q4 Human approval 的 identity 與 assurance
 
@@ -748,6 +749,36 @@ Reviewer 如何判斷 issue 嚴重度仍是非確定性 Agent 工作；core 只�
 
 > 新舊 request 採 side-by-side protocol；安裝時不自動遷移。Legacy request 經 explicit dry-run、人工確認、snapshot、stage-aware converter 與 atomic validation 後遷移；不支援狀態 fail closed，且同一 request 不允許新舊 writer 併行。
 
+### DET-Q9 Development 期間的需求變更如何落地
+
+#### 問題真正含義
+
+現行流程把 `plan-spec.json` 的 `task_breakdown` 當成進入 Development 後的唯讀契約。`/agent-work-team-develop` 最終審查的「修改意見」迴路只處理「做錯了要修正」，不處理「需求改了」：它不新增 task、不改 `plan-spec.json`、不重新評估已完成 task 是否失效。因此使用者實務上只能忍到最終審查夾帶、手動編輯 artifact，或另開一個沒有關聯記錄的新需求。其中手動編輯會造成 spec 與已完成產出**靜默不一致**，目前沒有任何機制能偵測。
+
+這個問題同時牽動三個已列管議題：變更的合法轉移與唯一下一步（`LIM-01`）、跨 artifact 一致性（`LIM-03`）、以及移除／回退已 commit 產出的 Git 副作用（`LIM-02`）。
+
+#### 候選方案（Proposed，未核准）
+
+分成三種 task disposition 討論，三者風險不對稱：
+
+- `added`（只新增 task）：不需要失效判定，不需要 Git 反向操作，風險與變更頻率無關。**可在現行 prompt 編排框架下實作。**
+- `modified`（改寫既有 task）：需要判定哪些已完成產出失效，屬 `LIM-01`／`LIM-03` 核心，**應由 core 承擔**。
+- `dropped`（移除既有 task）：需要移除已 commit 的程式碼，屬 `LIM-02`，**應由 core 承擔**。
+
+據此提出分階段設計，兩份 spec 皆為 Draft、未核准：
+
+- `docs/superpowers/specs/2026-08-20-agent-work-team-change-request-phase1-design.md`：只做偵測、記錄與路由——`plan-spec.json.spec_version` 與 `dev/progress.json` 每個 task 的 `spec_version` 一致性檢查（不一致即擋下流程）、`changes/CR-{n}.json` 記錄但不套用、`state.json` 的 `supersedes`／`superseded_by`、新增 `/agent-work-team-change`。不新增任何 `current_stage` 值、不做 Git 操作。
+- `docs/superpowers/specs/2026-08-20-agent-work-team-change-request-phase2-additive-design.md`：在 `dev-config.json.change_policy` 為 `additive` 時，允許經 Plan/SA/SD 提案 + Controller 機械驗證 + 人工核准後**只新增 task**，並遞增 `spec_version`。核准關卡沿用既有 `status: "Pending Approval"`，不新增 stage。
+
+#### 待決事項
+
+- Phase 1 是否核准實作。
+- Phase 2 的啟動條件（依 Phase 1 累積的 CR 記錄判斷 L2 變更是否夠頻繁、是否多屬純新增），以及是否直接判定不做。
+- `modified`／`dropped` 在 core 落地時的 event、transition 與 Git 回退 policy——本題目前不對此提出方案。
+- CR 相關 artifact 是否納入 §7 的 versioned schema 清單。
+
+在使用者明確核准前，本題維持 `Open`，不得依上述 spec 擴大實作範圍。
+
 ## 18. Decision Log
 
 | 日期 | 決策 | 狀態 | 核准者 | 影響 |
@@ -764,6 +795,8 @@ Reviewer 如何判斷 issue 嚴重度仍是非確定性 Agent 工作；core 只�
 | 2026-07-20 | Legacy request 採 side-by-side protocol 與 explicit migration；安裝不自動轉換，不支援 stage fail closed | Approved | 使用者 | 關閉 DET-Q6；需 dry-run、人工確認、snapshot、stage-aware converter、atomic validation，且禁止新舊 writer 併行 |
 | 2026-07-20 | 交付採 Core contract 先行、Claude 第一個垂直切片、Copilot 提早驗證同一切片，後續按能力維持雙 adapter parity | Approved | 使用者 | 不採 Claude 全部完成後才做 Copilot，也不在 contract 未穩定時全面平行開發；外部整合與安全邊界依類型走不同路線 |
 | 2026-08-07 | 使用者可在 Spec 核准關卡選擇 Development 分支的 commit 粒度：`squash`（整個需求最終在分支上只留一個 commit）或 `per_task`（現行行為，每個 task／修正回合各自 commit）；squash 只在使用者核准最終審查、寫入 `DEV_APPROVED` 前，由 Controller 一次性執行 `git reset --soft` + `git commit`，不改變 per-task review 的 commit range 計算或 resume 判讀邏輯 | Approved | 使用者 | 新增 `planning/dev-config.json` artifact；`commands/agent-work-team.md`／`commands/agent-work-team-develop.md` 的 approval gate 行為擴充；不影響 DET-Q1～Q8 既有核准範圍，Git 副作用仍由現行 Controller Prompt（非 host-neutral core）直接執行 |
+
+| 2026-08-20 | 開立 DET-Q9（Development 期間的需求變更如何落地），並提出分階段候選設計：Phase 1 只做偵測／記錄／路由（`spec_version` 一致性檢查、`changes/CR-{n}.json`、`supersedes`、`/agent-work-team-change`），Phase 2 只在 `change_policy: additive` 時允許經人工核准後新增 task；`modified`／`dropped` 留給 host-neutral core | Proposed | 尚未核准 | 兩份 spec 為 Draft，不構成實作授權；Phase 2 另以 Phase 1 累積的 CR 記錄作為啟動條件 |
 
 新增決策時只 append，不覆寫歷史。若決策被取代，將舊項標記為 `Superseded` 並連結新決策。
 
@@ -825,3 +858,5 @@ Claude Code 在相關變更完成前逐項確認：
 - `docs/agent-work-team-current-state-context.md`
 - `docs/discussions/2026-07-20-current-limitations-issues.md`
 - `docs/reports/2026-07-20-current-limitations-recommendation-report.md`
+- `docs/superpowers/specs/2026-08-20-agent-work-team-change-request-phase1-design.md`（DET-Q9 Phase 1 候選設計，Draft）
+- `docs/superpowers/specs/2026-08-20-agent-work-team-change-request-phase2-additive-design.md`（DET-Q9 Phase 2 候選設計，Draft）
