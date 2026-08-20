@@ -10,6 +10,7 @@
 - 每個需求建立時會產生一個隨機 `token`（見 `state.json.token`），寫入 `pm-triage.json`／`planning/checkpoint.json`，用來偵測 `RQ-ID` 是否被重用（例如舊資料夾被刪除後編號被分配給新需求）；`/agent-work-team-resume`、`/agent-work-team-develop`、`/agent-work-team-knowledge` 動用既有檔案/分支前都會比對 token，不一致就停止並警告
 - `/agent-work-team-help` 列出所有指令與 `current_stage`/`status` 圖例
 - Development 階段已實作：`/agent-work-team-develop <RQ-ID>` 驅動 Developer → Review/Test，逐一實作並審查每個 task，全部完成後跑整體審查，止於 `DEV_APPROVED`；重跑同一指令即可從磁碟自動續接（含 `Blocked` 重試）
+- Development 階段的 commit 粒度可選：Spec 核准關卡（`/agent-work-team`）會問使用者要 `squash`（`agent-work-team/{RQ-ID}` 分支最終只留一個 commit）還是 `per_task`（現行預設，每個 task／修正回合各自 commit），選擇結果以 `commit_mode` 欄位寫進 `.agent-work-team/requests/RQ-ID/planning/dev-config.json`；`squash` 只在 `/agent-work-team-develop` 的最終人工核准當下由 Controller 一次性執行，過程中每個 task 的開發與審查完全不受影響；沒有這個檔案的既有需求會被要求補選
 - Knowledge Agent 階段已實作：`/agent-work-team-knowledge <RQ-ID>` 把已核准的 Development 成果整理進使用者的 Obsidian wiki（`.agent-work-team/wiki/`，或 `CLAUDE.md` 指定的路徑），止於 `DONE`；`progress` 從 `DEV_APPROVED` 之後凍結在 100；同樣可重跑自動續接
 - 需求總覽是自動維護的 `.agent-work-team/dashboard.md` 檔案，由 `hooks/sync-dashboard.mjs`（`PostToolUse` hook）在背景同步，不是 command 自己做，也不會出現在對話裡；`/agent-work-team-dashboard` 只是備用的手動重建指令
 - 狀態與各階段產出以檔案形式存在**使用者專案**的 `.agent-work-team/requests/` 底下，這個 plugin repo 本身不存放任何需求資料

@@ -4,8 +4,8 @@ document_type: living-architecture-discussion
 status: Accepted Direction
 decision_status: Approved
 created: 2026-07-20
-updated: 2026-07-20
-last_verified_against_code: 2026-07-20
+updated: 2026-08-07
+last_verified_against_code: 2026-08-07
 maintained_by: Human and Claude Code
 ---
 
@@ -763,6 +763,7 @@ Reviewer 如何判斷 issue 嚴重度仍是非確定性 Agent 工作；core 只�
 | 2026-07-20 | Validator 採 hard validator、policy gate、advisory check 三層模型；只有確定性檢查可直接阻擋，無法判斷時 fail closed | Approved | 使用者 | 關閉 DET-Q5；AI outcome 必須結構化，再由 core 固定政策處理 |
 | 2026-07-20 | Legacy request 採 side-by-side protocol 與 explicit migration；安裝不自動轉換，不支援 stage fail closed | Approved | 使用者 | 關閉 DET-Q6；需 dry-run、人工確認、snapshot、stage-aware converter、atomic validation，且禁止新舊 writer 併行 |
 | 2026-07-20 | 交付採 Core contract 先行、Claude 第一個垂直切片、Copilot 提早驗證同一切片，後續按能力維持雙 adapter parity | Approved | 使用者 | 不採 Claude 全部完成後才做 Copilot，也不在 contract 未穩定時全面平行開發；外部整合與安全邊界依類型走不同路線 |
+| 2026-08-07 | 使用者可在 Spec 核准關卡選擇 Development 分支的 commit 粒度：`squash`（整個需求最終在分支上只留一個 commit）或 `per_task`（現行行為，每個 task／修正回合各自 commit）；squash 只在使用者核准最終審查、寫入 `DEV_APPROVED` 前，由 Controller 一次性執行 `git reset --soft` + `git commit`，不改變 per-task review 的 commit range 計算或 resume 判讀邏輯 | Approved | 使用者 | 新增 `planning/dev-config.json` artifact；`commands/agent-work-team.md`／`commands/agent-work-team-develop.md` 的 approval gate 行為擴充；不影響 DET-Q1～Q8 既有核准範圍，Git 副作用仍由現行 Controller Prompt（非 host-neutral core）直接執行 |
 
 新增決策時只 append，不覆寫歷史。若決策被取代，將舊項標記為 `Superseded` 並連結新決策。
 
@@ -778,6 +779,7 @@ Reviewer 如何判斷 issue 嚴重度仍是非確定性 Agent 工作；core 只�
 | Artifact schema | 部分 Prompt 檢查 | Host-neutral workflow core | 尚無統一 schema | Approved direction; not implemented |
 | Action idempotency | Stage/progress 推論 | Host-neutral workflow core；event log 第一階段 audit-only | 尚無 action log | Approved direction; not implemented |
 | Git side effects | Developer／Controller Prompt | Core 建立隔離 worktree並控制 branch／stage／commit；Developer 編輯／測試；Reviewer 唯讀 | `commands/`、`agents/` | Approved direction; not implemented |
+| Commit granularity (squash vs per-task) | Controller Prompt（`commands/agent-work-team.md` 的 approval gate 詢問並寫入 `planning/dev-config.json`；`commands/agent-work-team-develop.md` 的 approval gate 於核准當下執行 `git reset --soft` + `git commit`） | 同左——仍在現行 Prompt 編排下實作，未導入 host-neutral core；待 DET-Q3 的隔離 worktree／core 控制 Git 副作用方向實作後應一併遷移 | `commands/agent-work-team.md`, `commands/agent-work-team-develop.md`, `.agent-work-team/requests/<RQ-ID>/planning/dev-config.json` | Implemented（現行 Prompt 編排範圍內） |
 | Core runtime／distribution | 尚無 | PowerShell 7+ CLI；隨 adapter 安裝 | 尚無實作 | Approved direction; not implemented |
 | Copilot workflow entry | 尚無 | VS Code Chat user-facing custom agent + hidden role subagents | `vscode-extension-github-copilot/` 目前為空 | Approved direction; not implemented |
 | Human approval assurance | 對話中的自然語言核准 | Core 產生 artifact-bound、single-use challenge；adapter 只轉交 matching explicit approval | 尚無實作 | Approved direction; not implemented |
