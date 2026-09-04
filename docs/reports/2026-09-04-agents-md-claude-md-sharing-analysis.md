@@ -1,7 +1,7 @@
 ---
 title: AGENTS.md 與 CLAUDE.md 內容共用可行性分析（合併版）
 document_type: analysis-report
-status: 分析報告；未執行任何調整（AGENTS.md／CLAUDE.md 內容均維持原狀）
+status: 分析報告；方案與 §6 五項決定已於 2026-09-04 由使用者拍板，實作尚未執行（AGENTS.md／CLAUDE.md 內容仍維持原狀）
 created: 2026-09-04
 updated: 2026-09-04
 note: 本檔已合併同日產出的另一份分析（原 docs/reports/2026-09-04-claude-agents-shared-content-analysis.md），為此主題的唯一報告
@@ -65,13 +65,13 @@ note: 本檔已合併同日產出的另一份分析（原 docs/reports/2026-09-0
 |---|---|---|---|---|---|
 | 1 | 目錄結構 / 檔案放哪 / runtime 資料邊界 | §Project Structure（L5） | 開頭 + §目前狀態 + §目錄慣例（L23–29） | 大幅重複 | 收斂為共用規範 |
 | 2 | 測試與安裝指令、hook 測試位置 | §Build, Test and Dev Commands（L9–16）、§Testing Guidelines | L26 提到 `node --test hooks/*.test.mjs` | 部分重複 | 共用測試規則；保留必要的 Claude Code 驗證命令並明確標示用途 |
-| 3 | 程式碼風格 / 命名 | §Coding Style（L20） | 無 | `AGENTS.md` 獨有 | 待決定是否提升為共通規範 |
-| 4 | 測試撰寫規範 | §Testing Guidelines（L24） | 無 | `AGENTS.md` 獨有 | 待決定是否提升為共通規範 |
-| 5 | 分支 / commit / PR 規則 | §Commit & PR（L28） | §開發規範第 3 點（L35） | 分支規則重複；其餘為 `AGENTS.md` 獨有 | 收斂分支規則；待決定是否提升 commit／PR 規則 |
+| 3 | 程式碼風格 / 命名 | §Coding Style（L20） | 無 | `AGENTS.md` 獨有 | 提升為共通規範（§6 決定 4）|
+| 4 | 測試撰寫規範 | §Testing Guidelines（L24） | 無 | `AGENTS.md` 獨有 | 提升為共通規範（§6 決定 4）|
+| 5 | 分支 / commit / PR 規則 | §Commit & PR（L28） | §開發規範第 3 點（L35） | 分支規則重複；其餘為 `AGENTS.md` 獨有 | 收斂分支規則；commit／PR 規則一併移入共用來源 |
 | 6 | 架構文件前置閱讀義務 | §Architecture Documentation（L32） | §Prompt 編排確定性協作（L39–42） | 重複但 `AGENTS.md` 是**有損子集** | 以 `CLAUDE.md` 完整版本為搬移基準，收斂至共用來源（見 §4） |
 | 6b | `docs/manual-testing-checklist.md` 已過時 | §Architecture Documentation | §Prompt 編排確定性協作 | 完全一致 | 收斂為共用規範 |
-| 7 | 專案目前狀態（各階段已實作什麼、Draft/已核准分類） | 無 | §目前狀態（L7–19，13 條） | `CLAUDE.md` 獨有 | 待決定放入共用來源或抽至 `docs/project-status.md` |
-| 8 | Planning 範圍判斷、`example-*` 佔位檔規則 | 無 | §開發規範 L33–34 | `CLAUDE.md` 獨有 | 待決定是否提升為共通規範 |
+| 7 | 專案目前狀態（各階段已實作什麼、Draft/已核准分類） | 無 | §目前狀態（L7–19，13 條） | `CLAUDE.md` 獨有 | 抽至 `docs/project-status.md`，入口標為必讀（§6 決定 3）|
+| 8 | Planning 範圍判斷、`example-*` 佔位檔規則 | 無 | §開發規範 L33–34 | `CLAUDE.md` 獨有 | 提升為共通規範（§6 決定 4）|
 
 兩份文件的主要內容確實描述同一個 repo，重複規則適合收斂。不過仍有少量 Claude Code 專屬機制與命令，例如 plugin 安裝指令、skill 自動判斷及 `.claude-plugin/` metadata。這些資訊給其他 agent 看通常無害，且部分仍是跨工具貢獻者需要知道的驗證與架構知識；是否留在共用來源應依「所有貢獻者是否需要」，而不是只依命令由哪個工具執行。分成兩個入口的主要理由是載入機制、受眾詳略與語言，而不只是語言。
 
@@ -105,12 +105,17 @@ note: 本檔已合併同日產出的另一份分析（原 docs/reports/2026-09-0
 
 ---
 
-## 6. 執行前需要決定的事
+## 6. 執行前需要決定的事（已拍板）
 
-1. **語言**：無論採 A／B／B'／C／D，都要決定共用來源用中文、英文或雙語。A 仍可使用雙語內容，但無法讓兩個入口呈現不同的語言版本；B／B' 則可在專屬段落保留另一種語言摘要。
-2. **`README.md` 的重複要不要一起收**：安裝指令同時出現在 `README.md` 與 `AGENTS.md`；`README.md` 面向使用者、共用 agent 規範面向貢獻者，可以刻意保留，但應指定哪一份是準的。
-3. **§3 #7 的「目前狀態」是否要抽成 `docs/project-status.md`**，以及抽出後如何確保兩個工具都會讀到。
-4. **§3 #3、#4、#8 是否提升為所有 agent 的共通規範**（原本只約束單邊）。
+以下決定於 2026-09-04 由使用者拍板，實作尚未執行。
+
+| # | 決定項 | 結果 |
+|---|---|---|
+| 0 | 採用方案 | **方案 B**——共用規範集中在 `AGENTS.md`，`CLAUDE.md` 以 `@AGENTS.md` 匯入後只留 Claude Code 專屬內容 |
+| 1 | 共用來源語言 | **中文**——與 `CLAUDE.md`／`README.md` 一致；現有英文版 `AGENTS.md` 內容改寫為中文 |
+| 2 | `README.md` 的重複 | **保留**——`README.md` 的作用是給使用者看，安裝指令留在原處；共用來源的指令面向貢獻者，本次不動 `README.md` |
+| 3 | §3 #7「目前狀態」 | **抽成 `docs/project-status.md`**——共用來源只留穩定規範；入口必須寫明這份是必讀，不能只放普通連結 |
+| 4 | §3 #3／#4／#8 | **三項全部提升為共通規範**——程式風格／命名、測試撰寫規範、Planning 範圍判斷與 `example-*` 佔位檔規則，一律移入共用來源 |
 
 `AGENTS.md` 納入版控不是採用方案 B 後仍可選擇的事項，而是必要條件；否則其他 clone 不會取得共用入口。
 
@@ -118,14 +123,21 @@ note: 本檔已合併同日產出的另一份分析（原 docs/reports/2026-09-0
 
 ## 7. 建議的執行順序（尚未執行）
 
-本報告只做分析，**`AGENTS.md` 與 `CLAUDE.md` 的內容均未調整**。若日後決定採行方案 B，建議順序如下：
+截至本次更新，**`AGENTS.md` 與 `CLAUDE.md` 的內容均未調整**。依 §6 拍板結果，執行順序如下：
 
-1. 以 `AGENTS.md` 作為共用規範的單一真實來源，將 `CLAUDE.md` 中工具無關且較完整的規則併入；語言依 §6 決定 1 先拍板。
-2. 將 `CLAUDE.md` 改為以 `@AGENTS.md` 開頭，後方只保留 Claude Code 專屬內容與尚未決定是否共用的產品現況。
-3. 將 `AGENTS.md` 納入版控，這是方案 B 的必要條件。
-4. 在兩份文件中避免再次複製相同規則，並驗證 Claude Code 啟動時確實載入 import、Codex 啟動時確實載入根目錄 `AGENTS.md`。
+1. 把 `CLAUDE.md` §目前狀態（L7–19，13 條）抽到 `docs/project-status.md`。
+2. 以 `AGENTS.md` 作為共用規範的單一真實來源，改寫為中文，並納入：現有英文版的工具無關內容（目錄結構、測試與安裝指令、程式風格／命名、測試撰寫規範、commit／PR 規則）、`CLAUDE.md` 的完整架構文件義務（§4 三類漏失以 `CLAUDE.md:39–42` 為準）、以及 #3／#4／#8。
+3. `AGENTS.md` 內以明確的「必讀」語句指向 `docs/project-status.md`，不使用普通 Markdown 連結。
+4. 將 `CLAUDE.md` 改為以 `@AGENTS.md` 開頭，後方只保留 Claude Code 專屬內容（plugin 安裝／驗證指令、skill 自動判斷、`.claude-plugin/` metadata 等）。
+5. 將 `AGENTS.md` 納入版控，這是方案 B 的必要條件。
+6. 驗證載入行為，並記錄實際證據（見下方驗收條件）。
 
-§6 的決定 2（README 重複）、決定 3（抽出 `docs/project-status.md`）、決定 4（#3／#4／#8 是否升為共通規範）需個別拍板，不隨方案 B 一起執行。
+**驗收條件**（§7 步驟 6 的判準，避免「已驗證」流於宣稱）：
+
+- Claude Code：新 session 啟動後確認 `@AGENTS.md` 已展開，共用規範實際出現在 context 中（非只看到 import 那一行）。
+- Codex：確認根目錄 `AGENTS.md` 被自動載入，且其中指向 `docs/project-status.md` 的必讀語句被實際遵循。
+- 內容不重複：`AGENTS.md`、`CLAUDE.md`、`docs/project-status.md` 三份之間，同一條規則只出現一次。
+- `README.md` 未被本次變更修改。
 
 ---
 
