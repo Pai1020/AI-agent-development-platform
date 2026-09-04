@@ -13,14 +13,18 @@
 - Development 階段的 commit 粒度可選：Spec 核准關卡（`/agent-work-team`）會問使用者要 `squash`（`agent-work-team/{RQ-ID}` 分支最終只留一個 commit）還是 `per_task`（現行預設，每個 task／修正回合各自 commit），選擇結果以 `commit_mode` 欄位寫進 `.agent-work-team/requests/RQ-ID/planning/dev-config.json`；`squash` 只在 `/agent-work-team-develop` 的最終人工核准當下由 Controller 一次性執行，過程中每個 task 的開發與審查完全不受影響；沒有這個檔案的既有需求會被要求補選
 - Knowledge Agent 階段已實作：`/agent-work-team-knowledge <RQ-ID>` 把已核准的 Development 成果整理進使用者的 Obsidian wiki（`.agent-work-team/wiki/`，或 `CLAUDE.md` 指定的路徑），止於 `DONE`；`progress` 從 `DEV_APPROVED` 之後凍結在 100；同樣可重跑自動續接
 - 需求總覽是自動維護的 `.agent-work-team/dashboard.md` 檔案，由 `hooks/sync-dashboard.mjs`（`PostToolUse` hook）在背景同步，不是 command 自己做，也不會出現在對話裡；`/agent-work-team-dashboard` 只是備用的手動重建指令
-- 狀態與各階段產出以檔案形式存在**使用者專案**的 `.agent-work-team/requests/` 底下，這個 plugin repo 本身不存放任何需求資料
-- 完整設計見 `docs/superpowers/specs/2026-07-04-agent-work-team-planning-design.md`（Planning）、`docs/superpowers/specs/2026-07-05-agent-work-team-development-design.md`（Development）、`docs/superpowers/specs/2026-07-07-agent-work-team-knowledge-design.md`（Knowledge Agent）與 `docs/superpowers/specs/2026-07-14-agent-work-team-planning-resume-design.md`（Planning 軟停持久化 + Resume/Help + Token 重用防護）
+- 反覆失敗的自動攔截已實作：`hooks/enforce-block.mjs`（同樣掛在 `PostToolUse`／matcher `Write`，見 `hooks/hooks.json`）會在每次寫入 `dev/progress.json` 時檢查 `tasks[].fix_rounds`／`tasks[].needs_context_rounds`／`final_review_fix_rounds`，任何一項超過 2 就把 `state.json` 改成 `status: Blocked`／`waiting_on: Human`、重建 dashboard，並回一段 `additionalContext` 要求停止 dispatch 並回報使用者，不依賴 command 自己記得擋
+- 狀態與各階段產出以檔案形式存在**使用者專案**的 `.agent-work-team/requests/` 底下，這個 plugin repo 本身不存放任何需求資料；這個路徑目前仍寫死在各 command／hook 裡（`data_root` 可設定化只有設計、尚未實作）
+- 完整設計（**已實作**）見 `docs/superpowers/specs/2026-07-04-agent-work-team-planning-design.md`（Planning）、`docs/superpowers/specs/2026-07-05-agent-work-team-development-design.md`（Development）、`docs/superpowers/specs/2026-07-07-agent-work-team-knowledge-design.md`（Knowledge Agent）、`docs/superpowers/specs/2026-07-14-agent-work-team-planning-resume-design.md`（Planning 軟停持久化 + Resume/Help + Token 重用防護）與 `docs/superpowers/specs/2026-08-07-agent-work-team-develop-commit-mode-design.md`（Commit 粒度）
+- 以下 spec 是 **Draft、尚未核准也尚未實作**，不代表現況，不得當作已存在的行為引用：`docs/superpowers/specs/2026-07-30-agent-work-team-data-root-config-design.md`（資料根目錄可設定化）、`docs/superpowers/specs/2026-08-20-agent-work-team-change-request-phase1-design.md` 與 `docs/superpowers/specs/2026-08-20-agent-work-team-change-request-phase2-additive-design.md`（開發中需求變更 Phase 1／Phase 2，對應 `DET-Q9`）
 
 ## 目錄慣例
 
 - `skills/<name>/SKILL.md` — 供 Claude Code 自動判斷是否套用的技能
 - `agents/<name>.md` — 可被 Agent 工具呼叫的 subagent 定義
 - `commands/<name>.md` — 使用者可用 `/<name>` 觸發的 slash command
+- `hooks/hooks.json` — hook 註冊表；`hooks/<name>.mjs` 是 hook 實作（ESM），測試以 `hooks/<name>.test.mjs` 併放在旁邊，用 `node --test hooks/*.test.mjs` 執行（這是本 repo 唯一有自動化測試的部分，修改 hook 前後都要跑）
+- `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` / `docs/superpowers/plans/` — 設計文件與實作計畫；`docs/architecture/` 放跨階段的 living document
 - `.claude-plugin/plugin.json` — plugin manifest
 - `.claude-plugin/marketplace.json` — 本機測試安裝用的 marketplace 定義
 
