@@ -27,39 +27,12 @@
 - `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` / `docs/superpowers/plans/` — 設計文件與實作計畫；`docs/architecture/` 放跨階段的 living document
 - `.claude-plugin/plugin.json` — plugin manifest
 - `.claude-plugin/marketplace.json` — 本機測試安裝用的 marketplace 定義
-- `AGENTS.md` — 只是指向本檔的入口（給非 Claude Code 的 agent 工具用），**不放任何規則**；所有規範一律只寫在本檔，避免兩份文件各自漂移
-
-## 開發與測試指令
-
-沒有編譯或套件安裝步驟。使用 Node.js 21 或相容的新版本。
-
-- `node --test hooks/*.test.mjs` — 跑全部 hook 單元測試。
-- `node --test hooks/sync-dashboard.test.mjs` — 只跑單一測試套件。
-- `/plugin marketplace add <本 repo 的本機路徑或 git URL>` — 把這個 repo 註冊成本機測試用的 marketplace。
-- `/plugin install ai-agent-dev-platform` — 從該 marketplace 安裝。
-
-安裝後，請在一個**可拋棄的消費者專案**裡實際操作受影響的 slash command；絕對不要在本 repo 內產生需求狀態資料。
-
-## 程式碼風格
-
-- JavaScript 一律是 ESM（`.mjs`）：兩空格縮排、句尾加分號、字串用單引號、函式用 `camelCase`。
-- 可測試的 hook 邏輯用 named export 匯出，CLI 行為收斂在一個小的 `main()` 路徑裡。
-- command／agent／skill 名稱用 kebab-case，並保留 `agent-work-team-*` 前綴。
-- Markdown 指令文件要直述、標明所處 stage，並明確寫出會持久化的產出與核准關卡。
-
-## 測試規範
-
-- 測試用 `node:test` 與 `node:assert/strict`，命名描述「可觀察的行為」，並與模組併放為 `<module>.test.mjs`。
-- 路徑比對、壞掉的 JSON、狀態轉移、重試上限、檔案系統副作用都要有回歸測試覆蓋。
-- 不設數字覆蓋率門檻，但送審前所有 hook 測試必須全數通過。
 
 ## 開發規範
 
 - 新增功能前先確認是否屬於 Planning 階段範圍，跨階段功能應拆成獨立的 spec/plan。
 - 佔位檔案（example-*）在對應真正功能實作完成後應被取代，而不是保留。
 - 對這個專案進行任何調整或開發，都要另外開一條分支處理，不要直接在 `main` 上修改；開發人員確認過（review／測試通過）才能 merge 回 `main`。
-- Commit 訊息用簡潔的祈使句主旨，可採 Conventional Commit 形式（例如 `docs: clarify resume behavior`）；一個 commit 只做一件事。
-- PR 要說明對流程的影響、列出做過哪些測試、連結對應的 issue 或 spec；若有使用者可見的行為變化，附上實際的指令輸出範例。
 
 ## Prompt 編排確定性協作
 
