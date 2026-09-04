@@ -77,4 +77,4 @@ Knowledge    → PENDING_KNOWLEDGE_APPROVAL → DONE
 
 ## 開發規範
 
-對這個專案做任何調整都要另開分支處理，不要直接在 `main` 上修改；經 review／測試通過才 merge 回 `main`（見 `CLAUDE.md`）。
+對這個專案做任何調整都要另開分支處理，不要直接在 `main` 上修改；經 review／測試通過才 merge 回 `main`（完整規範見 `AGENTS.md`）。

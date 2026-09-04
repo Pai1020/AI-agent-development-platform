@@ -161,7 +161,7 @@ note: 本檔已合併同日產出的另一份分析（原 docs/reports/2026-09-0
 - Codex：確認根目錄 `AGENTS.md` 被自動載入，且其中指向 `docs/project-status.md` 的義務句被實際遵循。
 - 內容不重複：`AGENTS.md`、`CLAUDE.md`、`docs/project-status.md` 三份之間，同一條規則只出現一次。
 - §4 的三類漏失在共用來源中已補齊，特別是「`Proposed` ≠ 已核准」這條授權限制。
-- `README.md` 未被本次變更修改。
+- `README.md` 的安裝指令與使用者導向內容保持不動（決定 2）；僅 `README.md:80` 的規範指標由 `CLAUDE.md` 改指 `AGENTS.md`，避免指向已搬走的內容。
 
 ---
 
