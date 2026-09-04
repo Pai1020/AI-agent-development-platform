@@ -121,22 +121,46 @@ note: 本檔已合併同日產出的另一份分析（原 docs/reports/2026-09-0
 
 ---
 
-## 7. 建議的執行順序（尚未執行）
+## 7. 執行方式與順序
 
-截至本次更新，**`AGENTS.md` 與 `CLAUDE.md` 的內容均未調整**。依 §6 拍板結果，執行順序如下：
+### 7.1 分層原則（解決「入口膨脹」與「外移內容讀不到」）
 
-1. 把 `CLAUDE.md` §目前狀態（L7–19，13 條）抽到 `docs/project-status.md`。
-2. 以 `AGENTS.md` 作為共用規範的單一真實來源，改寫為中文，並納入：現有英文版的工具無關內容（目錄結構、測試與安裝指令、程式風格／命名、測試撰寫規範、commit／PR 規則）、`CLAUDE.md` 的完整架構文件義務（§4 三類漏失以 `CLAUDE.md:39–42` 為準）、以及 #3／#4／#8。
-3. `AGENTS.md` 內以明確的「必讀」語句指向 `docs/project-status.md`，不使用普通 Markdown 連結。
-4. 將 `CLAUDE.md` 改為以 `@AGENTS.md` 開頭，後方只保留 Claude Code 專屬內容（plugin 安裝／驗證指令、skill 自動判斷、`.claude-plugin/` metadata 等）。
+決定 3 把「目前狀態」外移後，會出現一個代價：那組資訊從「保證在 context 裡」降級成「agent 需自行去讀」。解法是依**變動速度**分層，而不是依「哪個工具讀」分層：
+
+| 內容型態 | 位置 | 理由 |
+|---|---|---|
+| 不變的行為約束（Draft ≠ 已核准、runtime 資料不落在本 repo、改 hook 前後必跑測試） | `AGENTS.md` | 沒讀到會造成**行為錯誤**，且幾乎不成長，留在保證載入的入口 |
+| 跨工具規範（目錄慣例、程式風格、測試規範、commit／PR、架構文件義務） | `AGENTS.md` | 工具無關、低變動 |
+| 清單型現況（各階段已實作哪些指令、哪些 spec 已核准／Draft） | `docs/project-status.md` | 逐月增長；沒讀到只是「要多查一次」，不會做出危險判斷 |
+| Claude Code 專屬機制 | `CLAUDE.md` | 只有 Claude Code 會消費 |
+
+配套三條：
+
+1. **Claude Code 側零降級**：`CLAUDE.md` 同時匯入 `@AGENTS.md` 與 `@docs/project-status.md`，兩份都保證載入；只有 Codex 側依賴指令遵循。
+2. **指標寫成前置條件**：`AGENTS.md` 內對 `docs/project-status.md` 的指向必須是有判準的義務句（例如「未讀不得聲稱某功能已實作」），不得只放普通 Markdown 連結。
+3. **入口容量規則**：`AGENTS.md` 內明文規定「只放跨工具、低變動的規範；清單型、逐月增長的內容一律外移到 `docs/`，此處只留必讀指標」，使入口的成長曲線跟隨規範數量而非功能數量。
+
+`docs/project-status.md` 本身採表格（階段｜狀態｜入口指令｜對應 spec），新增功能是加一列而非加一段；spec 細節留在 `docs/superpowers/specs/`，此處只放狀態與指向。
+
+未來備案（現在不做）：若 Codex 側實測常漏讀，可加 `SessionStart` hook 把 `docs/project-status.md` 注入 `additionalContext`；但它只對 Claude Code 有效、對 Codex 無效，在問題實際發生前不值得付維護成本。
+
+### 7.2 執行順序
+
+1. 新增 `docs/project-status.md`，以表格收納 `CLAUDE.md` §目前狀態（L7–19，13 條）。
+2. 改寫 `AGENTS.md` 為中文共用來源，納入：原英文版的工具無關內容（目錄結構、測試與安裝指令、程式風格／命名、測試撰寫規範、commit／PR 規則）、`CLAUDE.md` 的完整架構文件義務（以 `CLAUDE.md:39–42` 為準，補齊 §4 三類漏失）、#3／#4／#8，以及 §7.1 的不變約束與容量規則。
+3. 在 `AGENTS.md` 內以前置條件式義務句指向 `docs/project-status.md`。
+4. 將 `CLAUDE.md` 改為 `@AGENTS.md` ＋ `@docs/project-status.md`，其後只保留 Claude Code 專屬內容（plugin 安裝／驗證指令、skill 自動判斷、`.claude-plugin/` metadata 等）。
 5. 將 `AGENTS.md` 納入版控，這是方案 B 的必要條件。
-6. 驗證載入行為，並記錄實際證據（見下方驗收條件）。
+6. 驗證載入行為並記錄實際證據（見 §7.3）。
 
-**驗收條件**（§7 步驟 6 的判準，避免「已驗證」流於宣稱）：
+### 7.3 驗收條件
 
-- Claude Code：新 session 啟動後確認 `@AGENTS.md` 已展開，共用規範實際出現在 context 中（非只看到 import 那一行）。
-- Codex：確認根目錄 `AGENTS.md` 被自動載入，且其中指向 `docs/project-status.md` 的必讀語句被實際遵循。
+避免「已驗證」流於宣稱，以下為判準：
+
+- Claude Code：新 session 啟動後確認 `@AGENTS.md` 與 `@docs/project-status.md` 皆已展開，內容實際出現在 context 中（非只看到 import 那兩行）。
+- Codex：確認根目錄 `AGENTS.md` 被自動載入，且其中指向 `docs/project-status.md` 的義務句被實際遵循。
 - 內容不重複：`AGENTS.md`、`CLAUDE.md`、`docs/project-status.md` 三份之間，同一條規則只出現一次。
+- §4 的三類漏失在共用來源中已補齊，特別是「`Proposed` ≠ 已核准」這條授權限制。
 - `README.md` 未被本次變更修改。
 
 ---

@@ -508,11 +508,12 @@ GitHub Copilot CLI／ACP 可在未來需要下列能力時，作為另一個 hos
 
 Claude Code 規畫時的讀取順序：
 
-1. `CLAUDE.md`：repository 規則與 living document 維護義務。
-2. `docs/agent-work-team-current-state-context.md`：現行工具 as-is 快速基線。
-3. 本文件：已核准 target direction、責任邊界與未決問題。
-4. `docs/discussions/2026-07-20-current-limitations-issues.md`：議題與優先級。
-5. `docs/reports/2026-07-20-current-limitations-recommendation-report.md`：整體建議脈絡。
+1. `AGENTS.md`：repository 共用規則與 living document 維護義務（`CLAUDE.md` 以 `@AGENTS.md` 匯入，另補 Claude Code 專屬內容）。
+2. `docs/project-status.md`：各階段實作現況與 spec 核准狀態。
+3. `docs/agent-work-team-current-state-context.md`：現行工具 as-is 快速基線。
+4. 本文件：已核准 target direction、責任邊界與未決問題。
+5. `docs/discussions/2026-07-20-current-limitations-issues.md`：議題與優先級。
+6. `docs/reports/2026-07-20-current-limitations-recommendation-report.md`：整體建議脈絡。
 6. 實際 owning command／agent／hook：實作前核對真實現況。
 
 可直接納入規畫／實作的已核准範圍：
@@ -853,7 +854,8 @@ Claude Code 在相關變更完成前逐項確認：
 
 ## 22. 相關文件
 
-- `CLAUDE.md`
+- `AGENTS.md`（共用規範；`CLAUDE.md` 匯入之）
+- `docs/project-status.md`
 - `docs/agent-work-team-current-state-review.md`
 - `docs/agent-work-team-current-state-context.md`
 - `docs/discussions/2026-07-20-current-limitations-issues.md`
