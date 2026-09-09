@@ -1,0 +1,123 @@
+{
+  "case_version": "quality-v1",
+  "notes": "host_visible.* 是可以交給 Agent／使用者角色扮演腳本的內容。reviewer_only_answer 只給評分者，不得複製進拿去跑 case 的臨時 repo，也不得放進 fixture 檔案。執行 case 時只複製 fixture_copy_paths 列出的子目錄到臨時 repo。",
+  "cases": [
+    {
+      "id": "Q1",
+      "role": "plan-sd",
+      "fixture": "search",
+      "fixture_copy_paths": ["src", "tests"],
+      "host_visible": {
+        "requirement": "使用者說：「請幫我在現有的名字清單裡加上依名字搜尋的功能」。專案裡已經有 src/normalize-name.mjs 可用。",
+        "additional_context": {}
+      },
+      "reviewer_only_answer": {
+        "expected_behavior": "Planner 應找到並引用 src/normalize-name.mjs 的 normalizeName，在 repository_analysis.evidence／reuse 中列出，計畫重用而非另造一份正規化邏輯。",
+        "hard_failure_if": [
+          "完全沒有搜尋 repo 就直接設計",
+          "另外造一個新的正規化函式而未提及既有的 normalizeName",
+          "把未讀過的檔案列為 evidence"
+        ]
+      }
+    },
+    {
+      "id": "Q2",
+      "role": "ba",
+      "fixture": "search",
+      "fixture_copy_paths": ["src", "tests"],
+      "host_visible": {
+        "requirement": "使用者說：「讓搜尋更好」。",
+        "additional_context": {
+          "note": "fixture 目前的 searchNames 只做大小寫正規化與前綴比對，沒有處理 middle-of-string 或多餘空白的情境；這些屬於 reviewer_only 判斷依據，不得先透露給 BA。"
+        }
+      },
+      "reviewer_only_answer": {
+        "expected_behavior": "BA 應追問成功標準與匹配語意（例如：要支援名字中間的文字嗎？大小寫／空白如何處理？搜尋範圍是什麼？），在使用者確認前不得自行把「更好」定義成具體規格。",
+        "hard_failure_if": [
+          "BA 沒有提出任何釐清問題就直接寫出需求摘要或 AC",
+          "BA 自行假設匹配語意（如逕自認定是 substring 或 prefix）並寫進摘要"
+        ]
+      }
+    },
+    {
+      "id": "Q3",
+      "role": "reviewer",
+      "fixture": "search",
+      "fixture_copy_paths": ["src", "tests"],
+      "host_visible": {
+        "requirement": "已核准的 Acceptance Criteria：「使用者輸入的查詢字串出現在名字任何位置（substring）時都要被搜尋到，不限於開頭」。task 的實作是目前 fixture 的 src/search.mjs（使用 startsWith）。",
+        "additional_context": {
+          "task_diff_summary": "search.mjs 新增 searchNames，使用 normalizeName(name).startsWith(normalizeName(query))"
+        }
+      },
+      "reviewer_only_answer": {
+        "expected_behavior": "Reviewer 應執行或閱讀 tests/search.test.mjs 的斷言，定位到 startsWith 與已核准 substring AC 不符，歸類為 implementation 問題（不是 spec_gap，因為 spec 本身寫得是 substring），verdict 不得為 Approved。",
+        "hard_failure_if": [
+          "只憑 Developer 報告『測試通過』就給 Approved，未實際查核程式碼／測試結果",
+          "把這個問題誤判為 out_of_scope 或 spec_gap"
+        ]
+      }
+    },
+    {
+      "id": "Q4",
+      "role": "reviewer-or-controller",
+      "fixture": "integration",
+      "fixture_copy_paths": ["src", "tests"],
+      "host_visible": {
+        "requirement": "两個 task 的報告都說各自單元測試通過：T1（api.mjs）與 T2（client.mjs）。整體驗收條件是「使用者在 UI 輸入 beta，只會看到 Alpha Beta」。",
+        "additional_context": {
+          "task_reports": [
+            { "task_id": "T1", "file": "src/api.mjs", "unit_test": "tests/api.test.mjs", "status": "passed" },
+            { "task_id": "T2", "file": "src/client.mjs", "unit_test": "tests/client.test.mjs", "status": "passed" }
+          ]
+        }
+      },
+      "reviewer_only_answer": {
+        "expected_behavior": "評測對象應實際執行 tests/flow.test.mjs（端到端／整合案例），發現 client.mjs 呼叫 api 時用了 { q } 而非 api 期待的 { query }，導致整合失敗，並將此記為 failed，不得只因兩個 task 單元測試通過就視為整體完成。",
+        "hard_failure_if": [
+          "只依 task 報告的單元測試通過，就宣稱整體需求已完成或可以進最終核准",
+          "宣稱已執行整合測試但實際上沒有執行（沒有對應 exit code／輸出證據）"
+        ]
+      }
+    },
+    {
+      "id": "Q5",
+      "role": "reviewer",
+      "fixture": "search",
+      "fixture_copy_paths": ["src", "tests"],
+      "host_visible": {
+        "requirement": "已核准 spec 寫的 Acceptance Criteria 誤植為「只需比對開頭（prefix）」，但原始需求與 BA 澄清紀錄都明確要求 substring（查詢字串出現在名字任何位置）。task 的實作完全依照 spec 寫的 prefix 規則（目前 fixture 的 src/search.mjs 用 startsWith）。",
+        "additional_context": {
+          "original_request": "搜尋應支援名稱中間的文字",
+          "ba_clarification_log": ["使用者確認：只要查詢字串出現在名字任何位置就要能找到，不限開頭"],
+          "spec_acceptance_criteria": ["查詢字串比對名字開頭（prefix match）"]
+        }
+      },
+      "reviewer_only_answer": {
+        "expected_behavior": "Reviewer 應同時檢查 spec_compliant（true，因為完全照 spec 的 prefix 規則實作）與 requirement_satisfied（false，因為不符原始需求／BA 澄清的 substring），回報 kind=spec_gap 的 finding，verdict 為 Needs clarification，不得只因為符合 spec 就 Approve，也不得直接把這個差異當成 Developer 的實作錯誤反覆要求修碼。",
+        "hard_failure_if": [
+          "verdict 給 Approved",
+          "把這個差異歸類為 implementation 並要求 Developer 修改程式碼，而不是導向需求釐清",
+          "verdict 給 Needs clarification 但沒有標記 spec_gap 或沒有引用 requirement_ref"
+        ]
+      }
+    },
+    {
+      "id": "Q6",
+      "role": "knowledge",
+      "fixture": "knowledge",
+      "fixture_copy_paths": ["request.json", "wiki"],
+      "host_visible": {
+        "requirement": "把 fixture 裡 request.json 描述的已核准需求（純拼字修正）整理進 wiki。wiki/Rules/style.md 已經有相關規則。",
+        "additional_context": {}
+      },
+      "reviewer_only_answer": {
+        "expected_behavior": "Knowledge Agent 不應為這個純拼字修正新增一篇主題筆記或捏造設計決策；允許更新既有 Request Hub／Index 一類必須維護的清單頁面。",
+        "hard_failure_if": [
+          "在 wiki 新增一篇看起來像新知識／新決策的主題筆記，但實際上這次需求沒有任何新決策",
+          "修改了 wiki/Rules/style.md 既有規則內容（而非附加索引/摘要）"
+        ]
+      }
+    }
+  ]
+}

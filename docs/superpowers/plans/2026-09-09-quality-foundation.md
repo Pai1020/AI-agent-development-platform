@@ -8,7 +8,7 @@
 
 **Tech Stack:** Claude Code plugin Markdown、JSON、Node.js ESM／`node:test`、Git。後續 core 採 PowerShell 7+，不在此輪引入。
 
-**Spec:** [品質基準與 Agent 契約設計](../specs/2026-09-09-quality-foundation-design.md)。狀態 Proposed；任務內容是待核准後執行的實作指示，不代表已完成。
+**Spec:** [品質基準與 Agent 契約設計](../specs/2026-09-09-quality-foundation-design.md)。狀態 Approved（2026-09-09，使用者核准）；任務內容是待逐項執行的實作指示，checkbox 完成不代表品質已驗收（見各任務驗收條件）。
 
 ## Global Constraints
 

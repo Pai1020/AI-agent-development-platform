@@ -1,0 +1,22 @@
+{
+  "request_id": "RQ-FIX-001",
+  "title": "修正 README 拼字錯誤",
+  "status": "DEV_APPROVED",
+  "original_request": "README 裡 'recieve' 拼字錯誤，請修正為 'receive'",
+  "ba_summary": "使用者要求修正 README.md 中的拼字錯誤，沒有其他行為變更。",
+  "acceptance_criteria": [
+    "README.md 中所有 'recieve' 修正為 'receive'，不影響其他內容"
+  ],
+  "task_breakdown": [
+    {
+      "task_id": "T1",
+      "description": "修正 README.md 拼字",
+      "files": ["README.md"]
+    }
+  ],
+  "final_diff_summary": "README.md: 'recieve' -> 'receive'（1 處），無其他變更",
+  "commit_range": "a1b2c3d..a1b2c3e",
+  "review_verdict": "Approved",
+  "new_decisions": [],
+  "notes": "純拼字修正，不涉及設計決策或新知識"
+}

@@ -1,7 +1,7 @@
 # 第一輪：品質基準與 Agent 契約設計草案
 
 - 日期：2026-09-09
-- 狀態：Proposed，供審閱；本次只建立計畫，沒有修改 runtime。
+- 狀態：Approved（2026-09-09，使用者於本輪對話核准 §7 所列各點：品質門檻與執行次數、verification_plan 增補相容性、Controller 整合測試責任、Needs clarification 持久化阻擋、舊 PENDING_FINAL_APPROVAL 例外）。核准範圍為本文件所述內容契約；尚未核准對應的 runtime 是否已實作或驗證，須以 Implementation Mapping／Verification Evidence 為準。
 - 程式基準：`7ccbaf7`，實際 owning command／agent 優先於現況摘要。
 - 來源：使用者指定的 `C:/Users/Patrick/Documents/Codex/2026-09-09/1-1-5-1-n6-2/refactor/2026-09-09-development-priorities.md`，第 1 輪 N6／N1／N3／N4。
 - 實作計畫：[第一輪任務](../plans/2026-09-09-quality-foundation.md)。
