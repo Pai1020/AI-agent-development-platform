@@ -1,0 +1,112 @@
+diff --git a/refactor/2026-09-09-development-priorities.md b/refactor/2026-09-09-development-priorities.md
+index 0a8f48c..9c88bd4 100644
+--- a/refactor/2026-09-09-development-priorities.md
++++ b/refactor/2026-09-09-development-priorities.md
+@@ -27,7 +27,7 @@
+ 
+ 既有需求續接、token 檢查、Markdown Dashboard、Knowledge 整理、Development commit mode 已有實作，不列為全新待辦；本計畫涉及它們時，指的是遷移、補強或驗證。
+ 
+-`docs/manual-testing-checklist.md` 已被專案規範標示過時，不作為现況、成熟度或驗證證據。
++`docs/manual-testing-checklist.md` 已被專案規範標示過時，不作為現況、成熟度或驗證證據。
+ 
+ ## 3. 整合優先級
+ 
+@@ -37,7 +37,8 @@
+ | P0 | 將測試計畫交接到 task，並執行整體驗證 | 新建議，待決策 | 明確測試執行責任，補上 task 通過但整體流程未驗證的缺口 | 小～中 |
+ | P0 | Reviewer 檢查原始需求是否真正被解決 | 新建議，待決策 | 避免符合 spec 卻未解決使用者問題 | 小～中 |
+ | P0 起步，持續擴充 | Agent 內容品質評測 | 新建議，待決策 | 為 Prompt、模型與架構改動提供比較基準 | 中 |
+-| P0 | Core 最小契約與第一個 Planning 流程切片 | docs 已核准方向 | 建立狀態、產物、續接與人工核准的可靠基礎 | 大，需拆分 |
++| P0 | Core 最小契約與 Claude Planning 流程切片 | docs 已核准方向 | 建立狀態、產物、續接與人工核准的可靠基礎 | 大；第 2 輪須先完成獨立 spec／成本拆解 |
++| P0，第 2 輪 Claude 切片穩定後 | Copilot 最薄 adapter 與同一 Planning 切片驗證 | docs 已核准方向 | 提早找出 host 假設；僅驗證相同切片，不包含完整 Copilot 產品功能 | 待獨立估算；需計入 adapter 起步、host 能力確認與品質回測成本 |
+ | P0，進入新版 Development 前完成 | Git preflight、隔離 worktree、core 控制 Git 操作 | docs 已核准方向，細節待設計 | 保護使用者變更，限制 staging、commit 與分支副作用 | 大 |
+ | P1 | Development／Knowledge core 化 | docs 已核准方向 | 將可靠性延伸到完整生命週期 | 大 |
+ | P1 | 依需求類型調整工作方法 | 新建議，待決策 | 讓 Bug、Research、Performance 等分類真正影響工作成果 | 中 |
+@@ -53,7 +54,9 @@
+ | P3 | 多人角色權限、跨 repository／monorepo 協調 | docs 待決策 | 複雜度高，需明確團隊情境 | 大 |
+ | 暫不排入 | 自動 merge、移除人工核准、Reviewer 直接修碼 | docs 預設保留現有邊界 | 目前沒有足夠理由改變既有產品原則 | — |
+ 
+-## 4. 六项新增改善的具體範圍
++## 4. 新增改善項目（N1–N6）
++
++N 編號識別改善項目；第 5 節的輪次識別交付順序，兩者沒有一一對應關係。N1／N3／N4／N6 於第 1 輪起步，N2／N5 主要於第 5 輪交付；N6 同時貫穿後續各輪。
+ 
+ ### N1：有證據的程式庫調查
+ 
+@@ -132,7 +135,16 @@ Plan/SA/SD 已產生 test_plan，但 Developer 的明列輸入沒有明確包含
+ 
+ 此項與 core contract tests／跨 host golden scenarios 互補：前者評估內容判斷，後者驗證流程與契約。
+ 
+-## 5. 建議六輪開發順序
++持續回測規則：
++
++- 保存第 1 輪改善前結果，以及改善後、經確認可作為比較依據的品質基準；後續 core 化以改善後基準比較，不能只與較差的改善前結果比較。
++- 第 2 輪的 Claude／Copilot Planning 切片重跑適用的 BA／Planner 固定案例；第 3 輪依功能上線重跑 Developer、Reviewer、Knowledge 案例，並在整輪交付前回跑已支援的完整案例集。
++- 後續改動 Prompt、模型、上下文傳遞、工具權限或可能影響 Agent 行為的流程時，重跑受影響案例；未受影響的能力不必機械式全部重跑。
++- 第 1 輪先定義案例版本、評分規則、重跑次數與可接受差異，再比較結果；記錄模型／設定、Prompt／core／adapter 版本及執行條件，不以單次輸出或文字完全一致判定品質。
++- 跨 host 分別報告品質；模型或條件不同時標記比較限制，不把差異直接歸因於 core。
++- 發現退步時先區分隨機變異、環境差異與可重現問題。修正後回測；若接受取捨，須明確記錄人工決策與理由，不能靜默覆寫基準。缺少回測或退步尚未處置時，不宣稱品質驗收通過。
++
++## 5. 分階段交付順序
+ 
+ ### 第 1 輪：建立品質基準並補強現有流程
+ 
+@@ -143,6 +155,7 @@ Plan/SA/SD 已產生 test_plan，但 Developer 的明列輸入沒有明確包含
+ 完成標準：
+ 
+ - 有可重複使用的案例、評判標準及實際結果。
++- 保存改善後品質基準，預先定義重跑次數、可接受差異與退步處理方式，作為第 2 輪起的回測依據。
+ - 規劃能引用相關程式碼證據。
+ - 測試計畫有執行責任與可辨識的結果。
+ - Reviewer 能區分實作錯誤與規格缺口。
+@@ -156,17 +169,30 @@ Plan/SA/SD 已產生 test_plan，但 Developer 的明列輸入沒有明確包含
+ 
+ 包含必要的 outcome、schema、transition、validation、retry、持久化、audit event、action identity、approval challenge 與相容性邊界。先定義切片所需部分，逐步擴充。
+ 
++本輪同時包含新 core 與從零建立 Copilot adapter 的工作，不能只以 core 一列估算整輪成本。進入 runtime 實作前，須先完成獨立 spec／成本拆解，涵蓋切片邊界、host 能力與工具限制、adapter 起步、測試環境、跨 host 契約驗證、品質回測及主要未知風險。估算需區分開發工作與外部環境前置條件，不預設本輪與其他輪規模相同。
++
++依序交付以下里程碑：
++
++| 里程碑 | 範圍 | 完成／進入下一步條件 |
++|---|---|---|
++| 2A：契約與可行性確認 | 獨立 spec、最小 core 契約、host 能力確認、工作及成本拆解 | 定義切片內外範圍、驗收案例、未知風險及所需決策；必要探查限於驗證可行性 |
++| 2B：Core＋Claude Planning | 實作同時涵蓋 state、artifact、resume、human approval 的最小切片 | core 與 Claude 行為測試通過，適用 N6 案例完成回測，退步已處置 |
++| 2C：Copilot 同一切片 | 建立最薄 VS Code Chat adapter，使用 2B 相同情境驗證 | 契約對等與適用 N6 品質回測完成，adapter 無獨立流程規則副本 |
++
++2C 在 2B 穩定後立即進行，不延後到 Claude 全部功能完成；本輪不要求交付完整 Copilot 功能或正式安裝管理 CLI。
++
+ 完成標準：
+ 
+ - core contract tests 通過。
+ - Claude 切片可執行、等待人工核准並跨 session 續接。
+ - Copilot 使用同一情境產生等價 state、event 與 artifact。
++- Claude／Copilot 各自重跑第 1 輪適用的 Planning 品質案例，依 N6 規則比較改善後基準、記錄差異並處置退步；contract parity 不取代內容品質驗收。
+ - adapter 沒有自行維護另一套 transition／retry／validation。
+ - legacy workflow 並存，同一 request 不被新舊 writer 同時修改。
+ 
+ ### 第 3 輪：讓完整開發流程可靠運作
+ 
+-範圍：Git preflight、隔離 worktree、core 控制 Git，逐步擴充 Development 與 Knowledge。
++範圍：Git preflight、隔離 worktree、core 控制 Git，逐步擴充 Development 與 Knowledge；既有 commit granularity（squash／per_task）須隨 Git 副作用一併遷移至 core。
+ 
+ 完成標準：
+ 
+@@ -174,6 +200,11 @@ Plan/SA/SD 已產生 test_plan，但 Developer 的明列輸入沒有明確包含
+ - 新增能力逐項完成 Core → Claude → Copilot 對等驗證。
+ - 重試、中斷、部分完成與核准情境有可執行證據。
+ - N3／N4 的測試與審查證據納入新版流程。
++- 隨 Developer、Reviewer、Knowledge 能力遷移，重跑各自適用的第 1 輪固定案例；整輪交付前回跑已支援的完整案例集，依 N6 規則與改善後基準比較並處置退步。
++- core 讀取並保留既有 commit_mode 選擇，驗證 squash 與 per_task 兩種模式；設定缺失時仍需明確補選，不靜默改變使用者選擇。
++- per_task 保留每個 task／修正回合的 commit；squash 僅於最終人工核准後由 core 執行，成功後才進入 DEV_APPROVED，不提前整理歷史。
++- 逐 task review 與續接不因 commit 整理失效；squash 後仍可追溯各 task、審查所用歷史與最終交付 commit。
++- 以中斷／重跑案例驗證核准及 squash 的部分完成狀態，避免重複 squash／commit 或在 Git 操作未成功時宣告完成；具體恢復政策於本輪 spec 中定義。
+ - 外部 wiki／vault 操作依明確政策處理，不推測授權範圍。
+ 
+ ### 第 4 輪：可配布、可承接舊資料
+@@ -232,6 +263,7 @@ Plan/SA/SD 已產生 test_plan，但 Developer 的明列輸入沒有明確包含
+ 5. 涉及 stage、status、dispatch、resume、retry、approval、artifact 或 Git 副作用時，同步維護 living architecture document。
+ 6. docs/manual-testing-checklist.md 不得作為驗證依據。
+ 7. 本計畫中的成本與排序應在實作拆解、評測或使用者需求改變後重新評估。
++8. 後續各輪依 N6 的變更觸發規則執行品質回測，保留比較證據；不得以契約測試通過代替內容品質驗收。
+ 
+ ## 8. 參考文件
+ 
