@@ -1,6 +1,6 @@
 {
   "name": "ai-agent-dev-platform-marketplace",
-  "description": "Local marketplace for the ai-agent-dev-platform Claude Code plugin",
+  "description": "Marketplace for the ai-agent-dev-platform Claude Code plugin",
   "owner": {
     "name": "Pai1020",
     "url": "https://github.com/Pai1020"
@@ -22,8 +22,8 @@
     },
     {
       "name": "ai-agent-dev-platform-eval-test",
-      "description": "SDLC 開發流程自動化工具集 for Claude Code — 涵蓋 Planning／Development／Knowledge 三階段，每階段皆有人工把關",
-      "version": "0.1.0",
+      "description": "SDLC 開發流程自動化工具集 for Claude Code — Eval/Test version",
+      "version": "0.1.0-test",
       "source": {
         "source": "github",
         "repo": "Pai1020/AI-agent-development-platform",
