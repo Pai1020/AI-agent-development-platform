@@ -10,7 +10,25 @@
       "name": "ai-agent-dev-platform",
       "description": "SDLC 開發流程自動化工具集 for Claude Code — 涵蓋 Planning／Development／Knowledge 三階段，每階段皆有人工把關",
       "version": "0.1.0",
-      "source": "./",
+      "source": {
+        "source": "github",
+        "repo": "Pai1020/AI-agent-development-platform",
+        "ref": "main"
+      },
+      "author": {
+        "name": "Pai1020",
+        "url": "https://github.com/Pai1020"
+      }
+    },
+    {
+      "name": "ai-agent-dev-platform-eval-test",
+      "description": "SDLC 開發流程自動化工具集 for Claude Code — 涵蓋 Planning／Development／Knowledge 三階段，每階段皆有人工把關",
+      "version": "0.1.0",
+      "source": {
+        "source": "github",
+        "repo": "Pai1020/AI-agent-development-platform",
+        "ref": "codex/development-execution-plan"
+      },
       "author": {
         "name": "Pai1020",
         "url": "https://github.com/Pai1020"
