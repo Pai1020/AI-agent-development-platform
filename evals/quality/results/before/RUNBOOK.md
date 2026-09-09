@@ -55,7 +55,7 @@ Host-visible 文字一律照抄 `../../cases.json` 對應案例的 `host_visible
 
 **注入設定（人工操作，非 Agent 行為，需寫進 `setup-diff.txt`）：** 這是目前 command 架構的限制——`/agent-work-team-develop` 一定是「真的 Developer 先做，馬上接真的 Reviewer」，沒有「假裝 Developer 已完成、直接跳到 Reviewer」的路徑。要讓 Reviewer 每次看到同一個已知 bug，同時保持 Reviewer 本身的 dispatch／判斷完全真實，做法是：讓真正的 Developer 依照一份「故意寫錯的 task 指示」實作——Reviewer 完全不知情、完全正常執行，我們只控制它看到的輸入。
 
-1. 複製 fixture（同 Q1）。
+1. **只**複製 `evals/quality/fixtures/search/src/normalize-name.mjs`（既有可重用工具，真的存在）進 scratch repo 並 commit；**不要**複製 `search.mjs`／`search.test.mjs`——這兩個檔案要由真 Developer 依（被注入的）task 描述現寫，不是預先放好的。
 2. 執行 `/agent-work-team`，需求用：「請新增依名字搜尋的功能，查詢字串出現在名字任何位置（substring）都要能找到，不限開頭。」BA 澄清可自然回答，最終 AC 務必包含「substring／不限開頭」字樣。
 3. Plan/SA/SD 產出 `plan-spec.json` 後，在核准前，**手動編輯** `task_breakdown` 裡負責搜尋邏輯的那個 task 的 `description`（不要動最外層 `requirement_summary`／AC 的 substring 敘述，只動這個 task 自己的 `description`），改成類似：「使用 `String.prototype.startsWith` 比對名字開頭來實作搜尋」。把改之前／改之後的內容存進 `setup-diff.txt`。
 4. Approve Spec（commit_mode 選 `per_task`），執行 `/agent-work-team-develop`。真的 Developer 會依你改過的 task description 實作（預期會寫出 `startsWith`）；真的 Reviewer 會依 task 的 `acceptance_criteria`（沒被你改過，仍是 substring）審查這個 diff。
@@ -66,7 +66,7 @@ Host-visible 文字一律照抄 `../../cases.json` 對應案例的 `host_visible
 
 **注入設定同 Q3 的原則。**
 
-1. 複製 `evals/quality/fixtures/integration/src/` 與 `tests/` 到 scratch repo，`git add -A && git commit`。
+1. Scratch repo 只放一個空的 `README.md` 初始 commit（跟第 1 節通用流程一樣）；**不要**預先放 `api.mjs`／`client.mjs`——兩個都要由真 Developer 依（被注入的）task 描述現寫。
 2. 執行 `/agent-work-team`，需求用：「請串接一個名字搜尋 API：後端 API 用 `query` 這個欄位名稱接收查詢字串；前端／client 呼叫這個 API 時要能查到符合的名字。請拆成兩個 task：一個實作 API，一個實作呼叫 API 的 client。」（明確要求拆兩個 task，讓後面的注入好對應）。
 3. Plan/SA/SD 產出 `plan-spec.json` 後，核准前手動編輯**負責 client 的那個 task**的 `description`，加一句：「呼叫 API 時使用 `{ q: <查詢字串> }` 作為參數」（API 那個 task 的 description 維持用 `query` 這個欄位名稱，不要動）。存 `setup-diff.txt`。
 4. Approve Spec，執行 `/agent-work-team-develop`。兩個 task 的 Developer 各自實作、各自的單元測試很可能都 pass（各自只驗證自己那半）。全部 task done 後會觸發整體 review（`scope: "final"`）。
@@ -76,7 +76,7 @@ Host-visible 文字一律照抄 `../../cases.json` 對應案例的 `host_visible
 
 **注入設定同 Q3。**
 
-1. 複製 fixture（同 Q1）。
+1. **只**複製 `normalize-name.mjs`（同 Q3 的理由，不預放 `search.mjs`／`search.test.mjs`）。
 2. 執行 `/agent-work-team`，需求用：「搜尋應支援名稱中間的文字」（=`cases.json` Q5 的 `original_request`）。BA 澄清時，若被問到匹配語意，明確回答「只要查詢字串出現在名字任何位置就要能找到，不限開頭」，確保 `ba-requirement.json` 正確記下 substring。
 3. Plan/SA/SD 產出 `plan-spec.json` 後，核准前**手動編輯**最外層／該 task 的 `acceptance_criteria`，把 substring 的敘述改成「查詢字串比對名字開頭（prefix match）」（模擬 spec 撰寫錯誤）。存 `setup-diff.txt`（含改之前的原文，證明 BA 是對的、只有 spec 寫錯）。
 4. Approve Spec，執行 `/agent-work-team-develop`。真 Developer 會依（錯誤的）AC 實作 prefix／`startsWith`；真 Reviewer 依這個 task 的 AC 審查——這裡的重點不是 Reviewer 抓不到 code bug（照 spec 實作沒有 code bug），而是看 Reviewer 有沒有能力／有沒有被要求去對照 BA／原始需求，發現「完全符合 spec 但沒解決原始問題」。**目前版本的 Reviewer agent 輸入不包含 BA／原始需求**，預期會直接 Approve——這正是要記錄的落差，不是操作失敗。

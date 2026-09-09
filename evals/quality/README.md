@@ -57,7 +57,12 @@ evals/quality/
 
 ## T2（改善前基準）執行方式
 
-我（Claude Code，這個開發 session）沒有 slash command 存取權，也已經在寫 `cases.json` 時看過六例的 `reviewer_only_answer`，不能自己扮演使用者跑 case（會汙染盲評）。T2 的 18 次真實 session 由人工在裝有本 plugin 的 Claude Code session 執行，操作步驟見 [`results/before/RUNBOOK.md`](results/before/RUNBOOK.md)，進度追蹤見 [`results/before/RUN_TRACKER.md`](results/before/RUN_TRACKER.md)。
+我（Claude Code，這個開發 session）沒有 slash command 存取權，也已經在寫 `cases.json` 時看過六例的 `reviewer_only_answer`，不能自己扮演使用者跑 case（會汙染盲評）。T2 的 18 次真實 session 在裝有本 plugin 的另一個 Claude Code session 執行：
+
+- 想手動一步步操作：照 [`results/before/RUNBOOK.md`](results/before/RUNBOOK.md)。
+- 想貼一段提示詞讓那個 session 的 Agent 自己跑：用 [`results/before/AGENT_PROMPTS.md`](results/before/AGENT_PROMPTS.md)（六個案例各一份可直接複製貼上的提示詞，只含操作腳本，不含評分答案；同一份貼 3 次、每次改 `RUN_LABEL` 開新 session）。
+
+兩者操作邏輯一致，進度追蹤見 [`results/before/RUN_TRACKER.md`](results/before/RUN_TRACKER.md)。
 
 RUNBOOK 也記錄了一個實際探查到的架構限制：`/agent-work-team-develop` 的 Step 5 一定是「真 Developer 剛做完、馬上接真 Reviewer」，沒有「跳過 Developer 直接把已知 diff 丟給 Reviewer」的路徑，所以 Q3／Q4／Q5 用「人工只注入 task 描述文字，讓真 Developer／真 Reviewer 各自正常執行」的方式維持可重現性，注入內容一律存成 `setup-diff.txt` 並排除在 Agent 分數之外。
 
